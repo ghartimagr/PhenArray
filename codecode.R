@@ -3,18 +3,19 @@ getwd()
 setwd("/home/mamata/Desktop/project/code/")
 #loading the required libraries
 library("xlsx")
-library("tidyverse")
-library("ggplot2")
 library("reshape2")
 library("lattice")
 library("dplyr")
 library("tibble")
-source("Scaling.r") #contains all my functions for the project
+library("limma")
+source("Scaling.R") #contains all my functions for the project
+library(contrast)
+
 #STEP 1: PLOTTING THE RAW DATA: BOX PLOTS
 
 #CONTROL PLATE
 #loading the table from the excel sheet
-pmcontrol = read.xlsx("data01.xlsx", sheetName = "control plate")
+pmcontrol = read.xlsx("../Data/three experiments_biolog PM1-PM2A_LL-HL.xlsx", sheetName = "control plate")
 head(pmcontrol)
 #melt works like stack: stacking LL and HL columns into one for the box plot
 newpmcontrol = melt(pmcontrol, id = "position")
@@ -61,7 +62,6 @@ head(pm1stacked)
 bwplot(pm1stacked$values~pm1stacked$metabolite|pm1stacked$light_condition, col= rainbow(ncol(Tpm1)), ylab = "values", xlab = "metabolites")
 
 # PM2 PLATE
-
 #reading the PM2A sheet using xlsx library
 pm2 = read.xlsx("../Data/three experiments_biolog PM1-PM2A_LL-HL.xlsx", sheetName = "PM2A")
 head(pm2)
@@ -200,6 +200,7 @@ bwplot(spm2$values~spm2$metabolite | spm2$light_condition, col= rainbow(ncol(pm1
 
 #LINEAR MODEL FOR CONTROL PLATE
 # TRY model with intercept
+
 X <- model.matrix(~variable+position, data = snewpmcontrol)
 fitpmc <- lm(value~variable+position, data =snewpmcontrol)
 summary(fitpmc)
@@ -221,30 +222,82 @@ plot(fitpmc)
 
 #this our scaled pm1 table with values , light condition and 
 #metabolites stacked in their repective columns and we use it to fit the model now
+head(spm1stacked)
 head(spm1) 
+
 #grouping the metabolite and light condition together
 spm1$group <- factor(paste0(spm1$metabolite, spm1$light_condition))
 head(spm1)
-
 Xpm1<-model.matrix(~0+group, data =spm1)
 head(Xpm1)
-#image(Xpm1)
+
+#using default lm function
 fitpm1 <- lm(values~0+group, data = spm1)
-summary(fitpm1)
+summarypm1 <- (summary(fitpm1))
+coefs <- as.data.frame(summarypm1$coefficients)
+coefs <- tibble::rownames_to_column(coefs)
+head(coefs)
 plot(fitpm1)
+
+
+#using the limma package
+# fitpm1 <- lmFit(spm1$values, Xpm1)
+# limma.pm1 <- eBayes(fitpm1)
+# pm1.limma.model <-topTable(limma.pm1)
+# head(pm1.limma.model)
+# results <- decideTests(limma.pm1)
+# vennDiagram(results)
 
 #LINEAR MODELS FOR PM2 PLATE
 head(spm2) 
 #grouping the metabolite and light condition together
 spm2$group <- factor(paste0(spm2$metabolite, spm2$light_condition))
 head(spm2)
-
 Xpm2<-model.matrix(~0+group, data =spm2)
 head(Xpm1)
-#image(Xpm1)
 fitpm2 <- lm(values~0+group, data = spm2)
-summary(fitpm2)
+summarypm2 <- summary(fitpm2)
 plot(fitpm2)
+coefs2 <- as.data.frame(summarypm2$coefficients)
+coefs2 <- tibble::rownames_to_column(coefs2)
+head(coefs2)
+
+
+#STEP 4 : CONTRAST MATRICES TO GET THE FOLLOWING:
+# LLcontrol - LLmetabolite
+# HLcontrol - HLmetabolite
+# (LLcontrol - LLmetabolite) - (HLcontrol - HLmetabolites)
+ 
+#plate pm1
+#All of our HL metabolite combos are in odd rows
+#All of our LL metabolites are in the even rows
+
+coefs[c(165,166), ] # the columns for te negative controls
+contrast1 <- Contrast(coefs, LLc=166, HLc=165)
+head(contrast1)
+#putting back the metabolites names in the contrast- matrix
+contrastbind = cbind(coefs[,1], contrast)
+head(contrastbind)
+#diffcontrast gives us (LLcontrol - LLmetabolite) - (HLcontrol - HLmetabolites) value
+difcontrast1 <- Difference(contrast1)
+head(difcontrast1)
+
+
+#plate pm2
+coefs2[c(161,162),] #te columns for te negative controls
+contrast2 <- Contrast(coefs2, LLc=162, HLc=161)
+head(contrast2)
+#putting back the metabolites names in the contrast matrix
+contrastbind2 = cbind(coefs2[,1], contrast2)
+head(contrastbind2)
+difcontrast2 <- Difference(contrast2)
+head(difcontrast2)
+
+
+
+
+
+
 
 
 
