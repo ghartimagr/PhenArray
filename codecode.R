@@ -10,7 +10,7 @@ library("tibble")
 library("limma")
 source("Scaling.R") #contains all my functions for the project
 library("contrast")
-
+library("multcomp")
 conv_metnames=function(metn) {
   #Function to convert an character vector or metabolite names into valid
   #R variable names
@@ -255,7 +255,7 @@ contpm1=makeContrasts(contrasts =c("MaltoseHL-Negative.ControlHL", "MaltoseLL-Ne
 
 fitpm1 <- lm(values~0+group, data = spm1)
 # glht already adjust pvalues
-contfit=glht(fitpm1, t(contpm1))
+confit=glht(fitpm1, t(contpm1))
 summary(confit)
 
 ### LIMMA IMPLEMENTATION
