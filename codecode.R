@@ -9,13 +9,26 @@ library("dplyr")
 library("tibble")
 library("limma")
 source("Scaling.R") #contains all my functions for the project
-library(contrast)
+library("contrast")
+
+conv_metnames=function(metn) {
+  #Function to convert an character vector or metabolite names into valid
+  #R variable names
+  
+  #substitute all invalid characters with . 
+  metn=gsub(" |-|,", ".",metn)
+  #quotes are removed
+  metn=gsub("`", "", metn)
+  #Add a 'met' as prefix to all metabolite names starting with a number
+  metn[grep("^[[:digit:]]", metn)]=paste("met", metn[grep("^[[:digit:]]", metn)], sep="")
+  return(metn)
+}
 
 #STEP 1: PLOTTING THE RAW DATA: BOX PLOTS
 
 #CONTROL PLATE
 #loading the table from the excel sheet
-pmcontrol = read.xlsx("../Data/three experiments_biolog PM1-PM2A_LL-HL.xlsx", sheetName = "control plate")
+pmcontrol = read.xlsx("Data/three experiments_biolog PM1-PM2A_LL-HL.xlsx", sheetName = "control plate")
 head(pmcontrol)
 #melt works like stack: stacking LL and HL columns into one for the box plot
 newpmcontrol = melt(pmcontrol, id = "position")
@@ -32,8 +45,10 @@ bwplot(newpmcontrol$value~newpmcontrol$position|newpmcontrol$variable,
 
 #PM1 PLATE
 #reading the data from the excel sheet
-pm1 = read.xlsx("../Data/three experiments_biolog PM1-PM2A_LL-HL.xlsx", sheetName = "PM1")
+pm1 = read.xlsx("Data/three experiments_biolog PM1-PM2A_LL-HL.xlsx", sheetName = "PM1")
 head(pm1)
+#convert metabolite names to conform R variable name syntax
+pm1$metabolite=conv_metnames(pm1$metabolite)
 pm1reduced <- pm1[,c(4:9)] #extracting the numeric part of the table LLs and HLs
 head(pm1reduced)
 Tpm1 <- t(pm1reduced) # transposing pm2reduced so that wen can have metabolites as columns
@@ -63,8 +78,9 @@ bwplot(pm1stacked$values~pm1stacked$metabolite|pm1stacked$light_condition, col= 
 
 # PM2 PLATE
 #reading the PM2A sheet using xlsx library
-pm2 = read.xlsx("../Data/three experiments_biolog PM1-PM2A_LL-HL.xlsx", sheetName = "PM2A")
+pm2 = read.xlsx("Data/three experiments_biolog PM1-PM2A_LL-HL.xlsx", sheetName = "PM2A")
 head(pm2)
+pm2$metabolite=conv_metnames(pm2$metabolite)
 #again extracting the columns for LLs and HLs
 pm2reduced <- pm2[,c(4:9)]
 head(pm2reduced)
@@ -201,6 +217,7 @@ bwplot(spm2$values~spm2$metabolite | spm2$light_condition, col= rainbow(ncol(pm1
 #LINEAR MODEL FOR CONTROL PLATE
 # TRY model with intercept
 
+
 X <- model.matrix(~variable+position, data = snewpmcontrol)
 fitpmc <- lm(value~variable+position, data =snewpmcontrol)
 summary(fitpmc)
@@ -218,7 +235,7 @@ summary(fitpmc)
 plot(fitpmc)
 
 
-# LINEAR MODEL FOR PM1
+# LINEAR MODEL FOR PM1 - 
 
 #this our scaled pm1 table with values , light condition and 
 #metabolites stacked in their repective columns and we use it to fit the model now
@@ -229,69 +246,96 @@ head(spm1)
 spm1$group <- factor(paste0(spm1$metabolite, spm1$light_condition))
 head(spm1)
 Xpm1<-model.matrix(~0+group, data =spm1)
-head(Xpm1)
+### R base LM IMPLEMENTATION
+#remove group prefix - here is one example on how to get contrast which you can then use to extract inference statistics please write a loop that extracts all other contrasts
+colnames(Xpm1)=gsub("^group", "", colnames(Xpm1))
+contpm1=makeContrasts(contrasts =c("MaltoseHL-Negative.ControlHL", "MaltoseLL-Negative.ControlLL", "(MaltoseHL-Negative.ControlHL)-(MaltoseLL-Negative.ControlLL)"), levels=Xpm1)
 
 #using default lm function
+
 fitpm1 <- lm(values~0+group, data = spm1)
-summarypm1 <- (summary(fitpm1))
-coefs <- as.data.frame(summarypm1$coefficients)
-coefs <- tibble::rownames_to_column(coefs)
-head(coefs)
-plot(fitpm1)
+# glht already adjust pvalues
+contfit=glht(fitpm1, t(contpm1))
+summary(confit)
+
+### LIMMA IMPLEMENTATION
+#We trasnfrom the data here into limma fromat for 1 gene
+spm1limma=data.frame(t(spm1$values))
+colnames(spm1limma)=spm1$group
+#generate canonical linear model
+limfit = lmFit(spm1limma,Xpm1)
+#extract contrasts
+limcont = contrasts.fit(limfit, contpm1)
+#calculate empirical bayes moderated t statistics
+eb=eBayes(limcont)
+
+limmaLFC=eb$coefficients
+#Benjamini Hochberg correction 
+limmapval <- p.adjust(eb$p.value,method="fdr")
 
 
-#using the limma package
-# fitpm1 <- lmFit(spm1$values, Xpm1)
-# limma.pm1 <- eBayes(fitpm1)
-# pm1.limma.model <-topTable(limma.pm1)
-# head(pm1.limma.model)
-# results <- decideTests(limma.pm1)
-# vennDiagram(results)
 
-#LINEAR MODELS FOR PM2 PLATE
-head(spm2) 
-#grouping the metabolite and light condition together
-spm2$group <- factor(paste0(spm2$metabolite, spm2$light_condition))
-head(spm2)
-Xpm2<-model.matrix(~0+group, data =spm2)
-head(Xpm1)
-fitpm2 <- lm(values~0+group, data = spm2)
-summarypm2 <- summary(fitpm2)
-plot(fitpm2)
-coefs2 <- as.data.frame(summarypm2$coefficients)
-coefs2 <- tibble::rownames_to_column(coefs2)
-head(coefs2)
-
-
-#STEP 4 : CONTRAST MATRICES TO GET THE FOLLOWING:
-# LLcontrol - LLmetabolite
-# HLcontrol - HLmetabolite
-# (LLcontrol - LLmetabolite) - (HLcontrol - HLmetabolites)
- 
-#plate pm1
-#All of our HL metabolite combos are in odd rows
-#All of our LL metabolites are in the even rows
-
-coefs[c(165,166), ] # the columns for te negative controls
-contrast1 <- Contrast(coefs, LLc=166, HLc=165)
-head(contrast1)
-#putting back the metabolites names in the contrast- matrix
-contrastbind = cbind(coefs[,1], contrast)
-head(contrastbind)
-#diffcontrast gives us (LLcontrol - LLmetabolite) - (HLcontrol - HLmetabolites) value
-difcontrast1 <- Difference(contrast1)
-head(difcontrast1)
-
-
-#plate pm2
-coefs2[c(161,162),] #te columns for te negative controls
-contrast2 <- Contrast(coefs2, LLc=162, HLc=161)
-head(contrast2)
-#putting back the metabolites names in the contrast matrix
-contrastbind2 = cbind(coefs2[,1], contrast2)
-head(contrastbind2)
-difcontrast2 <- Difference(contrast2)
-head(difcontrast2)
+# coefs <- as.data.frame(summarypm1$coefficients)
+# coefs <- tibble::rownames_to_column(coefs)
+# head(coefs)
+# plot(fitpm1)
+# 
+# 
+# #using the limma package
+# # fitpm1 <- lmFit(spm1$values, Xpm1)
+# # limma.pm1 <- eBayes(fitpm1)
+# # pm1.limma.model <-topTable(limma.pm1)
+# # head(pm1.limma.model)
+# # results <- decideTests(limma.pm1)
+# # vennDiagram(results)
+# 
+# #LINEAR MODELS FOR PM2 PLATE
+# head(spm2) 
+# #grouping the metabolite and light condition together
+# spm2$group <- factor(paste0(spm2$metabolite, spm2$light_condition))
+# head(spm2)
+# Xpm2<-model.matrix(~0+group, data =spm2)
+# head(Xpm1)
+# fitpm2 <- lm(values~0+group, data = spm2)
+# summarypm2 <- summary(fitpm2)
+# plot(fitpm2)
+# coefs2 <- as.data.frame(summarypm2$coefficients)
+# coefs2 <- tibble::rownames_to_column(coefs2)
+# head(coefs2)
+# 
+# 
+# #STEP 4 : CONTRAST MATRICES TO GET THE FOLLOWING:
+# # LLcontrol - LLmetabolite
+# # HLcontrol - HLmetabolite
+# # (LLcontrol - LLmetabolite) - (HLcontrol - HLmetabolites)
+#  
+# head(spm2)
+# #plate pm1
+# #All of our HL metabolite combos are in odd rows
+# #All of our LL metabolites are in the even rows
+# 
+# coefs[c(165,166), ] # the columns for te negative controls
+# 
+# contpm1=makeContrasts(contrasts="groupNegative.ControlHL-group1,2-PropanediolHL", levels=Xpm1)
+# contrast1 <- Contrast(coefs, LLc=166, HLc=165)
+# head(contrast1)
+# #putting back the metabolites names in the contrast- matrix
+# contrastbind = cbind(coefs[,1], contrast1)
+# head(contrastbind)
+# #diffcontrast gives us (LLcontrol - LLmetabolite) - (HLcontrol - HLmetabolites) value
+# difcontrast1 <- Difference(contrast1)
+# head(difcontrast1)
+# 
+# 
+# #plate pm2
+# coefs2[c(161,162),] #te columns for te negative controls
+# contrast2 <- Contrast(coefs2, LLc=162, HLc=161)
+# head(contrast2)
+# #putting back the metabolites names in the contrast matrix
+# contrastbind2 = cbind(coefs2[,1], contrast2)
+# head(contrastbind2)
+# difcontrast2 <- Difference(contrast2)
+# head(difcontrast2)
 
 
 
