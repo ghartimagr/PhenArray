@@ -10,7 +10,8 @@ library("tibble")
 library("limma")
 source("Scaling.R") #contains all my functions for the project
 library("contrast")
-
+library("multcomp")
+library("ggplot2")
 conv_metnames=function(metn) {
   #Function to convert an character vector or metabolite names into valid
   #R variable names
@@ -221,7 +222,7 @@ bwplot(spm2$values~spm2$metabolite | spm2$light_condition, col= rainbow(ncol(pm1
 X <- model.matrix(~variable+position, data = snewpmcontrol)
 fitpmc <- lm(value~variable+position, data =snewpmcontrol)
 summary(fitpmc)
-plot(fitpmc)
+#plot(fitpmc)
 
 #for model without intercept
 #forming a group row in the dataframe with position and light conditions (variable) columns combined
@@ -232,7 +233,7 @@ head(X)
 X <- model.matrix(~0+group, data = snewpmcontrol)
 fitpmc <- lm(value~0+group, data = snewpmcontrol)
 summary(fitpmc)
-plot(fitpmc)
+#plot(fitpmc)
 
 
 # LINEAR MODEL FOR PM1 - 
@@ -246,17 +247,55 @@ head(spm1)
 spm1$group <- factor(paste0(spm1$metabolite, spm1$light_condition))
 head(spm1)
 Xpm1<-model.matrix(~0+group, data =spm1)
+
 ### R base LM IMPLEMENTATION
 #remove group prefix - here is one example on how to get contrast which you can then use to extract inference statistics please write a loop that extracts all other contrasts
 colnames(Xpm1)=gsub("^group", "", colnames(Xpm1))
-contpm1=makeContrasts(contrasts =c("MaltoseHL-Negative.ControlHL", "MaltoseLL-Negative.ControlLL", "(MaltoseHL-Negative.ControlHL)-(MaltoseLL-Negative.ControlLL)"), levels=Xpm1)
 
+#taking out the column names of the Xpm1 matrix for the metabolite names
+cHL= Xpm1[,165] #negative control HL 
+cLL= Xpm1[,166] # negative controlLL
+
+#contpm=makeContrasts(contrasts =c("MaltoseHL-Negative.ControlHL", "MaltoseLL-Negative.ControlLL", "(MaltoseHL-Negative.ControlHL)-(MaltoseLL-Negative.ControlLL)"), levels=Xpm1)
+#head(contpm)
+
+#the following code is to create a character vector of the column names to calculate the
+#differences and differences of the differences using the makeContrasts 
+
+vec <- vector(mode = "character", length = ncol(Xpm1)/2)
+vec2 <- vector(mode = "character", length = ncol(Xpm1)/2)
+for ( i in 1:ncol(Xpm1))
+{
+  if (i%%2==0)
+  {
+    vec[i/2] = paste(colnames(Xpm1)[i], "Negative.ControlLL", sep = "-")
+
+  }
+  else
+  {
+    vec2[i%/%2+1] = paste(colnames(Xpm1)[i], "Negative.ControlHL", sep = "-")
+  }
+}
+#removing "Negative.ControlHL-Negative.ControlHL", "Negative.ControlLL-Negative.ControlLL", 
+#"Negative.ControlHL-Negative.ControlHL-Negative.ControlLL-Negative.ControlLL"
+#so that they do not introduce NA's in pvalue calculation 
+
+#summary function literally fails if i have NAs
+#vec = setdiff(vec, c("Negative.ControlLL-Negative.ControlLL"))
+#vec2 = setdiff(vec2, c("Negative.ControlHL-Negative.ControlHL"))
+
+metabolitevec <- paste(vec2,vec, sep ="-")
+#metabolitevec <- setdiff(metabolitevec, c("Negative.ControlHL-Negative.ControlHL-Negative.ControlLL-Negative.ControlLL"))
+
+contpm1=makeContrasts(contrasts =c(vec2, vec, metabolitevec), levels=Xpm1)
+head(contpm1)
 #using default lm function
-
 fitpm1 <- lm(values~0+group, data = spm1)
+summary(fitpm1)
 # glht already adjust pvalues
-contfit=glht(fitpm1, t(contpm1))
-summary(confit)
+confit=glht(fitpm1, t(contpm1))
+lmcoef = confit$coef
+summary(confit) #doesnt work, tried lines 283-285,, still doesnt work
 
 ### LIMMA IMPLEMENTATION
 #We trasnfrom the data here into limma fromat for 1 gene
@@ -268,83 +307,62 @@ limfit = lmFit(spm1limma,Xpm1)
 limcont = contrasts.fit(limfit, contpm1)
 #calculate empirical bayes moderated t statistics
 eb=eBayes(limcont)
-
 limmaLFC=eb$coefficients
+#pval = eb$p.value
 #Benjamini Hochberg correction 
 limmapval <- p.adjust(eb$p.value,method="fdr")
 
+#making a dataframe of limmaLFC ie. estimate values and limmapval ie. p values for volcano plot
+limmaLFC = t(limmaLFC)
+dfpm1 <- as.data.frame(cbind(limmaLFC, limmapval))
+dfpm1 <- tibble::rownames_to_column(dfpm1, "contrasts")
+colnames(dfpm1) = c("contrasts", "limmaLFC", "limmapval")
 
+# Volcano plots indicate the fold change (either positive or negative) in the x axis 
+#and a significance value (such as the p-value or the adjusted p-value, i.e. FDR) in the y axis
 
-# coefs <- as.data.frame(summarypm1$coefficients)
-# coefs <- tibble::rownames_to_column(coefs)
-# head(coefs)
-# plot(fitpm1)
-# 
-# 
-# #using the limma package
-# # fitpm1 <- lmFit(spm1$values, Xpm1)
-# # limma.pm1 <- eBayes(fitpm1)
-# # pm1.limma.model <-topTable(limma.pm1)
-# # head(pm1.limma.model)
-# # results <- decideTests(limma.pm1)
-# # vennDiagram(results)
-# 
-# #LINEAR MODELS FOR PM2 PLATE
-# head(spm2) 
-# #grouping the metabolite and light condition together
-# spm2$group <- factor(paste0(spm2$metabolite, spm2$light_condition))
-# head(spm2)
-# Xpm2<-model.matrix(~0+group, data =spm2)
-# head(Xpm1)
-# fitpm2 <- lm(values~0+group, data = spm2)
-# summarypm2 <- summary(fitpm2)
-# plot(fitpm2)
-# coefs2 <- as.data.frame(summarypm2$coefficients)
-# coefs2 <- tibble::rownames_to_column(coefs2)
-# head(coefs2)
-# 
-# 
-# #STEP 4 : CONTRAST MATRICES TO GET THE FOLLOWING:
-# # LLcontrol - LLmetabolite
-# # HLcontrol - HLmetabolite
-# # (LLcontrol - LLmetabolite) - (HLcontrol - HLmetabolites)
-#  
-# head(spm2)
-# #plate pm1
-# #All of our HL metabolite combos are in odd rows
-# #All of our LL metabolites are in the even rows
-# 
-# coefs[c(165,166), ] # the columns for te negative controls
-# 
-# contpm1=makeContrasts(contrasts="groupNegative.ControlHL-group1,2-PropanediolHL", levels=Xpm1)
-# contrast1 <- Contrast(coefs, LLc=166, HLc=165)
-# head(contrast1)
-# #putting back the metabolites names in the contrast- matrix
-# contrastbind = cbind(coefs[,1], contrast1)
-# head(contrastbind)
-# #diffcontrast gives us (LLcontrol - LLmetabolite) - (HLcontrol - HLmetabolites) value
-# difcontrast1 <- Difference(contrast1)
-# head(difcontrast1)
-# 
-# 
-# #plate pm2
-# coefs2[c(161,162),] #te columns for te negative controls
-# contrast2 <- Contrast(coefs2, LLc=162, HLc=161)
-# head(contrast2)
-# #putting back the metabolites names in the contrast matrix
-# contrastbind2 = cbind(coefs2[,1], contrast2)
-# head(contrastbind2)
-# difcontrast2 <- Difference(contrast2)
-# head(difcontrast2)
+#The ‘limmapval’ columns contains the corrected pvalues; 
+#these must be converted to the negative of their logarithm base 10 before plotting, 
+#i.e -log10(p-value) or -log10(FDR).
+#Since volacno plots are scatter plots, we can use geom_point() to generate one with ggplot2
+#the higher the position of a point, the more significant its value is (y axis).
+#Points with positive fold change values (to the right) are up-regulated and 
+#points with negative fold change values (to the left) are down-regulated (x axis).
 
+p1 <- ggplot(dfpm1, aes(x =limmaLFC, y=-log(limmapval,10))) + # -log10 conversion  
+  geom_point(size = 2/5) +
+  xlab(expression("log"[2]*"limmaLFC")) + 
+  ylab(expression("-log"[10]*"limmapval"))
+p1
 
+#Adding color to differentially expressed genes (DEGs)
+#Differentially expressed genes (DEGs) are usally considered as those with 
+#an absolute fold change greater or equal to 2 and a FDR value of 0.05 or less. 
+#So, we can make our volcano plot a bit more informative if we add some color to the DEGs in the plot. 
+#To do so, we’ll add an additional column, named ‘Expression’, 
+#indicating whether the expression of a gene is up-regulated, down-regulated, or unchanged
 
+dfpm1 <- dfpm1 %>% 
+  mutate(
+    Expression = case_when(limmaLFC >= log(2) & limmapval <= 0.05 ~ "Up-regulated",
+                           limmaLFC <= -log(2) & limmapval <= 0.05 ~ "Down-regulated",
+                           TRUE ~ "Unchanged")
+  )
+head(dfpm1) %>%
+  knitr_table()
 
+p2 <- ggplot(dfpm1, aes(limmaLFC, -log(limmapval,10))) +
+  geom_point(aes(color = Expression), size = 2/5) +
+  xlab(expression("log"[2]*"FC")) + 
+  ylab(expression("-log"[10]*"FDR")) +
+  scale_color_manual(values = c("dodgerblue3", "gray50", "firebrick3")) +
+  guides(colour = guide_legend(override.aes = list(size=1.5))) 
+p2
 
+#If we want to know how many genes are up- or down-regulated, or unchanged,
+#we can use dplyr’s count() function.
 
-
-
-
-
-
+dfpm1 %>% 
+  count(Expression) %>% 
+  knitr_table()
 
