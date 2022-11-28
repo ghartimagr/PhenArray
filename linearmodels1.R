@@ -343,9 +343,19 @@ p
 
 #which genes are down regulated, upregulated or none ?
 downregulated = as.vector(which((dfpm1$diffexpressed=="DOWN")==TRUE))
-downregulated
+
+down = data.frame(matrix(NA, nrow =163, ncol = 5))
+j = 1
+for ( i in downregulated)
+{
+  down[j,] = dfpm1[i,]
+  j =j+1
+}
+down
+
 upregulated = as.vector(which((dfpm1$diffexpressed=="UP")==TRUE))
-upregulated
+dfpm1[45,]
+
 # Now write down the name of genes beside the points...
 # Create a new column "delabel" to de, that will contain the name of genes differentially 
 #expressed (NA in case they are not)
@@ -468,7 +478,15 @@ p
 
 #which metabolites are down regulated, upregulated or none ?
 downregulated2 = as.vector(which((dfpm2$diffexpressed=="DOWN")==TRUE))
-upregulated2 = as.vector(which((dfpm2$diffexpressed=="UP")==TRUE))
+
+down2 = data.frame(matrix(NA, nrow =156, ncol = 5))
+j = 1
+for ( i in downregulated2)
+{
+  down2[j,] = dfpm2[i,]
+  j = j+1
+}
+down2
 
 # Now write down the name of genes beside the points...
 # Create a new column "delabel" to de, that will contain the name of genes differentially 
