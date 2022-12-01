@@ -279,8 +279,22 @@ for ( i in 1:ncol(Xpm1))
 #vec = setdiff(vec, c("Negative.ControlLL-Negative.ControlLL"))
 #vec2 = setdiff(vec2, c("Negative.ControlHL-Negative.ControlHL"))
 
-metabolitevec <- paste(vec2,vec, sep ="-")
-#metabolitevec <- setdiff(metabolitevec, c("Negative.ControlHL-Negative.ControlHL-Negative.ControlLL-Negative.ControlLL"))
+metabolitevec1 = vector()
+for ( i in 1: length(vec))
+{
+  metabolitevec1[i] = paste( c("("), vec[i], c(")"))
+}
+
+metabolitevec2 = vector()
+
+for ( i in 1: length(vec2))
+{
+  metabolitevec2[i] = paste( c("("), vec2[i], c(")"))
+}
+
+metabolitevec <- paste(metabolitevec2, metabolitevec1, sep ="-")
+#metabolitevec <- setdiff(metabolitevec, c("( Negative.ControlHL-Negative.ControlHL )-( Negative.ControlLL-Negative.ControlLL )"))
+>>>>>>> 3e1dc3d8cd278eb5c95741480280040c75c368f5
 
 contpm1=makeContrasts(contrasts =c(vec2, vec, metabolitevec), levels=Xpm1)
 head(contpm1)
@@ -315,8 +329,13 @@ limmapval <- p.adjust(eb$p.value,method="fdr")
 limmaLFC = t(limmaLFC)
 dfpm1 <- as.data.frame(cbind(limmaLFC, limmapval))
 dfpm1 <- tibble::rownames_to_column(dfpm1, "contrasts") 
+<<<<<<< HEAD
 dfpm1 <- tibble::rownames_to_column(dfpm1, "Numbers") 
 colnames(dfpm1) = c("Numbers", "contrasts", "limmaLFC", "limmapval")
+=======
+#dfpm1 <- tibble::rownames_to_column(dfpm1, "Numbers") 
+colnames(dfpm1) = c( "contrasts", "limmaLFC", "limmapval")
+>>>>>>> 3e1dc3d8cd278eb5c95741480280040c75c368f5
 head(dfpm1)
 # Volcano plots indicate the fold change (either positive or negative) in the x axis 
 #and a significance value (such as the p-value or the adjusted p-value, i.e. limmapval) in the y axis
@@ -343,8 +362,14 @@ p
 
 #which genes are down regulated, upregulated or none ?
 downregulated = as.vector(which((dfpm1$diffexpressed=="DOWN")==TRUE))
+<<<<<<< HEAD
 
 down = data.frame(matrix(NA, nrow =163, ncol = 5))
+=======
+#length(downregulated) : 52 dowwnregulated 
+
+down = data.frame(matrix(NA, nrow =52, ncol = 4))
+>>>>>>> 3e1dc3d8cd278eb5c95741480280040c75c368f5
 j = 1
 for ( i in downregulated)
 {
@@ -354,19 +379,39 @@ for ( i in downregulated)
 down
 
 upregulated = as.vector(which((dfpm1$diffexpressed=="UP")==TRUE))
+<<<<<<< HEAD
 dfpm1[45,]
+=======
+length(upregulated)
+up = data.frame(matrix(NA, nrow =16, ncol = 4))
+j = 1
+for ( i in upregulated)
+{
+  up[j,] = dfpm1[i,]
+  j =j+1
+}
+up
+>>>>>>> 3e1dc3d8cd278eb5c95741480280040c75c368f5
 
 # Now write down the name of genes beside the points...
 # Create a new column "delabel" to de, that will contain the name of genes differentially 
 #expressed (NA in case they are not)
 
 dfpm1$label <- NA
+<<<<<<< HEAD
 dfpm1$label[dfpm1$diffexpressed != "NO"] <- dfpm1$Numbers[dfpm1$diffexpressed != "NO"]
+=======
+dfpm1$label[dfpm1$diffexpressed != "NO"] <- dfpm1$contrasts[dfpm1$diffexpressed != "NO"]
+>>>>>>> 3e1dc3d8cd278eb5c95741480280040c75c368f5
 
 ggplot(data=dfpm1, aes(x=limmaLFC, y=-log10(limmapval), col=diffexpressed)) + 
   geom_point() + 
   theme_minimal() +
+<<<<<<< HEAD
   geom_text(data = dfpm1, aes(label = label))
+=======
+  geom_text(data = dfpm1, aes(label = label), check_overlap = TRUE, size = 3, hjust = 0.5)
+>>>>>>> 3e1dc3d8cd278eb5c95741480280040c75c368f5
 
 # LINEAR MODEL FOR PM2 - 
 
@@ -416,7 +461,24 @@ for ( i in 1:ncol(Xpm2))
 #vec = setdiff(vec, c("Negative.ControlLL-Negative.ControlLL"))
 #vec2 = setdiff(vec2, c("Negative.ControlHL-Negative.ControlHL"))
 
+<<<<<<< HEAD
 metabolitevec <- paste(vec2,vec, sep ="-")
+=======
+metabolitevec1 = vector()
+for ( i in 1: length(vec))
+{
+  metabolitevec1[i] = paste( c("("), vec[i], c(")"))
+}
+
+metabolitevec2 = vector()
+
+for ( i in 1: length(vec2))
+{
+  metabolitevec2[i] = paste( c("("), vec2[i], c(")"))
+}
+
+metabolitevec <- paste(metabolitevec2, metabolitevec1, sep ="-")
+>>>>>>> 3e1dc3d8cd278eb5c95741480280040c75c368f5
 #metabolitevec <- setdiff(metabolitevec, c("Negative.ControlHL-Negative.ControlHL-Negative.ControlLL-Negative.ControlLL"))
 
 contpm2=makeContrasts(contrasts =c(vec2, vec, metabolitevec), levels=Xpm2)
@@ -424,7 +486,11 @@ head(contpm2)
 #using default lm function
 fitpm2 <- lm(values~0+group, data = spm2)
 summary(fitpm2)
+<<<<<<< HEAD
 plot(fitpm2)
+=======
+#plot(fitpm2)
+>>>>>>> 3e1dc3d8cd278eb5c95741480280040c75c368f5
 # glht already adjust pvalues
 confit=glht(fitpm2, t(contpm2))
 lmcoef = confit$coef
@@ -449,8 +515,13 @@ limmapval <- p.adjust(eb$p.value,method="fdr")
 limmaLFC = t(limmaLFC)
 dfpm2 <- as.data.frame(cbind(limmaLFC, limmapval))
 dfpm2 <- tibble::rownames_to_column(dfpm2, "contrasts") 
+<<<<<<< HEAD
 dfpm2 <- tibble::rownames_to_column(dfpm2, "Numbers") 
 colnames(dfpm2) = c("Numbers", "contrasts", "limmaLFC", "limmapval")
+=======
+#dfpm2 <- tibble::rownames_to_column(dfpm2, "Numbers") 
+colnames(dfpm2) = c("contrasts", "limmaLFC", "limmapval")
+>>>>>>> 3e1dc3d8cd278eb5c95741480280040c75c368f5
 head(dfpm2)
 # Volcano plots indicate the fold change (either positive or negative) in the x axis 
 #and a significance value (such as the p-value or the adjusted p-value, i.e. limmapval) in the y axis
@@ -477,6 +548,7 @@ p <- ggplot(data=dfpm2, aes(x=limmaLFC, y=-log10(limmapval), col=diffexpressed))
 p
 
 #which metabolites are down regulated, upregulated or none ?
+<<<<<<< HEAD
 downregulated2 = as.vector(which((dfpm2$diffexpressed=="DOWN")==TRUE))
 
 down2 = data.frame(matrix(NA, nrow =156, ncol = 5))
@@ -487,16 +559,43 @@ for ( i in downregulated2)
   j = j+1
 }
 down2
+=======
+#which genes are down regulated, upregulated or none ?
+downregulated = as.vector(which((dfpm2$diffexpressed=="DOWN")==TRUE))
+length(downregulated) #50
+
+down = data.frame(matrix(NA, nrow =50, ncol = 4))
+j = 1
+for ( i in downregulated)
+{
+  down[j,] = dfpm2[i,]
+  j =j+1
+}
+down
+
+upregulated = as.vector(which((dfpm2$diffexpressed=="UP")==TRUE))
+length(upregulated) #1 only one metabolite is upregulated i.e. 266
+dfpm2[226,]
+
+>>>>>>> 3e1dc3d8cd278eb5c95741480280040c75c368f5
 
 # Now write down the name of genes beside the points...
 # Create a new column "delabel" to de, that will contain the name of genes differentially 
 #expressed (NA in case they are not)
 
 dfpm2$label <- NA
+<<<<<<< HEAD
 dfpm2$label[dfpm2$diffexpressed != "NO"] <- dfpm2$Numbers[dfpm2$diffexpressed != "NO"]
+=======
+dfpm2$label[dfpm2$diffexpressed != "NO"] <- dfpm2$contrasts[dfpm2$diffexpressed != "NO"]
+>>>>>>> 3e1dc3d8cd278eb5c95741480280040c75c368f5
 
 ggplot(data=dfpm2, aes(x=limmaLFC, y=-log10(limmapval), col=diffexpressed)) + 
   geom_point() + 
   theme_minimal() +
+<<<<<<< HEAD
   geom_text(data = dfpm2, aes(label = label))
+=======
+  geom_text(data = dfpm2, aes(label = label), check_overlap = TRUE, size = 3 , vjust =0.5 ,hjust = 0.5 )
+>>>>>>> 3e1dc3d8cd278eb5c95741480280040c75c368f5
 
