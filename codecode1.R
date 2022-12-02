@@ -12,7 +12,6 @@ source("Scaling.R") #contains all my functions for the project
 library("contrast")
 library("multcomp")
 library("ggplot2")
-library("ggrepel")
 conv_metnames=function(metn) {
   #Function to convert an character vector or metabolite names into valid
   #R variable names
@@ -277,13 +276,14 @@ for ( i in 1:ncol(Xpm1))
     vec2[i%/%2+1] = paste(colnames(Xpm1)[i], "Negative.ControlHL", sep = "-")
   }
 }
+
 #removing "Negative.ControlHL-Negative.ControlHL", "Negative.ControlLL-Negative.ControlLL", 
 #"Negative.ControlHL-Negative.ControlHL-Negative.ControlLL-Negative.ControlLL"
 #so that they do not introduce NA's in pvalue calculation 
-
 #summary function literally fails if i have NAs
-#vec = setdiff(vec, c("Negative.ControlLL-Negative.ControlLL"))
-#vec2 = setdiff(vec2, c("Negative.ControlHL-Negative.ControlHL"))
+
+vec = setdiff(vec, c("Negative.ControlLL-Negative.ControlLL"))
+vec2 = setdiff(vec2, c("Negative.ControlHL-Negative.ControlHL"))
 
 metabolitevec <- paste(vec2,vec, sep ="-")
 #metabolitevec <- setdiff(metabolitevec, c("Negative.ControlHL-Negative.ControlHL-Negative.ControlLL-Negative.ControlLL"))
@@ -293,11 +293,11 @@ head(contpm1)
 #using default lm function
 fitpm1 <- lm(values~0+group, data = spm1)
 summary(fitpm1)
-#plot(fitpm1)
 # glht already adjust pvalues
 confit=glht(fitpm1, t(contpm1))
 lmcoef = confit$coef
-summary(confit) #doesnt work, tried lines 283-285,, still doesnt work
+#summary(confit) #doesnt work
+
 
 ### LIMMA IMPLEMENTATION
 #We trasnfrom the data here into limma fromat for 1 gene
@@ -305,7 +305,6 @@ spm1limma=data.frame(t(spm1$values))
 colnames(spm1limma)=spm1$group
 #generate canonical linear model
 limfit = lmFit(spm1limma,Xpm1)
-
 #extract contrasts
 limcont = contrasts.fit(limfit, contpm1)
 #calculate empirical bayes moderated t statistics
@@ -315,26 +314,22 @@ limmaLFC=eb$coefficients
 #Benjamini Hochberg correction 
 limmapval <- p.adjust(eb$p.value,method="fdr")
 
-
 #making a dataframe of limmaLFC ie. estimate values and limmapval ie. p values for volcano plot
 limmaLFC = t(limmaLFC)
 dfpm1 <- as.data.frame(cbind(limmaLFC, limmapval))
-dfpm1 <- tibble::rownames_to_column(dfpm1, "contrasts") 
-dfpm1 <- tibble::rownames_to_column(dfpm1, "Numbers") 
-colnames(dfpm1) = c("Numbers", "contrasts", "limmaLFC", "limmapval")
-head(dfpm1)
+dfpm1 <- tibble::rownames_to_column(dfpm1, "contrasts")
+colnames(dfpm1) = c("contrasts", "limmaLFC", "limmapval")
+
 # Volcano plots indicate the fold change (either positive or negative) in the x axis 
-#and a significance value (such as the p-value or the adjusted p-value, i.e. limmapval) in the y axis
+#and a significance value (such as the p-value or the adjusted p-value, i.e. FDR) in the y axis
 
 #The ‘limmapval’ columns contains the corrected pvalues; 
 #these must be converted to the negative of their logarithm base 10 before plotting, 
-#i.e -log10(p-value) or -log10(limmapval).
+#i.e -log10(p-value) or -log10(FDR).
 #Since volacno plots are scatter plots, we can use geom_point() to generate one with ggplot2
 #the higher the position of a point, the more significant its value is (y axis).
 #Points with positive fold change values (to the right) are up-regulated and 
 #points with negative fold change values (to the left) are down-regulated (x axis).
-
-volcanoplot(eb, coef = "contrasts")
 
 p1 <- ggplot(dfpm1, aes(x =limmaLFC, y=-log(limmapval,10))) + # -log10 conversion  
   geom_point(size = 2/5) +
@@ -344,7 +339,7 @@ p1
 
 #Adding color to differentially expressed genes (DEGs)
 #Differentially expressed genes (DEGs) are usally considered as those with 
-#an absolute fold change greater or equal to 2 and a limmapval value of 0.05 or less. 
+#an absolute fold change greater or equal to 2 and a FDR value of 0.05 or less. 
 #So, we can make our volcano plot a bit more informative if we add some color to the DEGs in the plot. 
 #To do so, we’ll add an additional column, named ‘Expression’, 
 #indicating whether the expression of a gene is up-regulated, down-regulated, or unchanged
@@ -360,252 +355,15 @@ head(dfpm1) %>%
 
 p2 <- ggplot(dfpm1, aes(limmaLFC, -log(limmapval,10))) +
   geom_point(aes(color = Expression), size = 2/5) +
-  xlab(expression("log"[2]*"limmaLFC")) + 
-  ylab(expression("-log"[10]*"limmapval")) +
+  xlab(expression("log"[2]*"FC")) + 
+  ylab(expression("-log"[10]*"FDR")) +
   scale_color_manual(values = c("dodgerblue3", "gray50", "firebrick3")) +
   guides(colour = guide_legend(override.aes = list(size=1.5))) 
 p2
 
 #If we want to know how many genes are up- or down-regulated, or unchanged,
 #we can use dplyr’s count() function.
+
 dfpm1 %>% 
   count(Expression) %>% 
   knitr_table()
-
-#further methods for volcano plots
-dfpm1 <- dfpm1 %>%
-  mutate(
-    Significance = case_when(
-      abs(limmaLFC) >= log(2) & limmapval <= 0.05 & limmapval > 0.01 ~ "limmapval 0.05",
-      abs(limmaLFC) >= log(2) & limmapval <= 0.01 & limmapval > 0.001 ~ "limmapval 0.01",
-      abs(limmaLFC) >= log(2) & limmapval <= 0.001 ~ "limmapval 0.001",
-      TRUE ~ "Unchanged")
-  )
-head(dfpm1) %>%
-  knitr_table()
-
-p3 <- ggplot(dfpm1, aes(limmaLFC, -log(limmapval,10))) +
-  geom_point(aes(color = Significance), size = 2/5) +
-  xlab(expression("log"[2]*"FC")) +
-  ylab(expression("-log"[10]*"limmapval")) +
-  scale_color_viridis_d() +
-  guides(colour = guide_legend(override.aes = list(size=1.5)))
-
-p3
-
-dfpm1 %>%
-  count(Expression, Significance) %>%
-  knitr_table()
-
-topup <- 1
-topdown <- 163
-top_genes <- bind_rows(
-  dfpm1 %>% 
-    filter(Expression == 'Up-regulated') %>% 
-    arrange(limmapval, desc(abs(limmaLFC))) %>%
-    head(topup),
-  dfpm1 %>% 
-    filter(Expression == 'Down-regulated') %>% 
-    arrange(limmapval, desc(abs(limmaLFC)))%>%
-    head(topdown)
-)
-top_genes %>% 
-  knitr_table()
-p3 <-  p3 +
-  geom_label_repel(data = top_genes,
-                   mapping = aes(limmaLFC, -log(limmapval,10), label = Numbers),
-                   size = 2)
-p3
-
-# LINEAR MODEL FOR PM2 - 
-
-#this our scaled pm1 table with values , light condition and 
-#metabolites stacked in their repective columns and we use it to fit the model now
-
-head(spm2) 
-
-#grouping the metabolite and light condition together
-spm2$group <- factor(paste0(spm2$metabolite, spm2$light_condition))
-head(spm2)
-Xpm2<-model.matrix(~0+group, data =spm2)
-
-### R base LM IMPLEMENTATION
-#remove group prefix - here is one example on how to get contrast which you can then use to extract inference statistics please write a loop that extracts all other contrasts
-colnames(Xpm2)=gsub("^group", "", colnames(Xpm2))
-
-#taking out the column names of the Xpm1 matrix for the metabolite names
-cHL= Xpm2[,161] #negative control HL 
-cLL= Xpm2[,162] # negative controlLL
-
-#contpm=makeContrasts(contrasts =c("MaltoseHL-Negative.ControlHL", "MaltoseLL-Negative.ControlLL", "(MaltoseHL-Negative.ControlHL)-(MaltoseLL-Negative.ControlLL)"), levels=Xpm1)
-#head(contpm)
-
-#the following code is to create a character vector of the column names to calculate the
-#differences and differences of the differences using the makeContrasts 
-
-vec <- vector(mode = "character", length = ncol(Xpm2)/2)
-vec2 <- vector(mode = "character", length = ncol(Xpm2)/2)
-for ( i in 1:ncol(Xpm2))
-{
-  if (i%%2==0)
-  {
-    vec[i/2] = paste(colnames(Xpm2)[i], "Negative.ControlLL", sep = "-")
-    
-  }
-  else
-  {
-    vec2[i%/%2+1] = paste(colnames(Xpm2)[i], "Negative.ControlHL", sep = "-")
-  }
-}
-#removing "Negative.ControlHL-Negative.ControlHL", "Negative.ControlLL-Negative.ControlLL", 
-#"Negative.ControlHL-Negative.ControlHL-Negative.ControlLL-Negative.ControlLL"
-#so that they do not introduce NA's in pvalue calculation 
-
-#summary function literally fails if i have NAs
-#vec = setdiff(vec, c("Negative.ControlLL-Negative.ControlLL"))
-#vec2 = setdiff(vec2, c("Negative.ControlHL-Negative.ControlHL"))
-
-metabolitevec <- paste(vec2,vec, sep ="-")
-#metabolitevec <- setdiff(metabolitevec, c("Negative.ControlHL-Negative.ControlHL-Negative.ControlLL-Negative.ControlLL"))
-
-contpm2=makeContrasts(contrasts =c(vec2, vec, metabolitevec), levels=Xpm2)
-head(contpm2)
-#using default lm function
-fitpm2 <- lm(values~0+group, data = spm2)
-summary(fitpm2)
-# glht already adjust pvalues
-confit=glht(fitpm2, t(contpm2))
-lmcoef = confit$coef
-summary(confit) #doesnt work, tried lines 283-285,, still doesnt work
-
-### LIMMA IMPLEMENTATION
-#We trasnfrom the data here into limma fromat for 1 gene
-spm2limma=data.frame(t(spm2$values))
-colnames(spm2limma)=spm2$group
-#generate canonical linear model
-limfit = lmFit(spm2limma,Xpm2)
-#extract contrasts
-limcont = contrasts.fit(limfit, contpm2)
-#calculate empirical bayes moderated t statistics
-eb=eBayes(limcont)
-limmaLFC=eb$coefficients
-#pval = eb$p.value
-#Benjamini Hochberg correction 
-limmapval <- p.adjust(eb$p.value,method="fdr")
-
-#making a dataframe of limmaLFC ie. estimate values and limmapval ie. p values for volcano plot
-limmaLFC = t(limmaLFC)
-dfpm2 <- as.data.frame(cbind(limmaLFC, limmapval))
-dfpm2 <- tibble::rownames_to_column(dfpm2, "contrasts") 
-dfpm2 <- tibble::rownames_to_column(dfpm2, "Numbers") 
-colnames(dfpm2) = c("Numbers", "contrasts", "limmaLFC", "limmapval")
-head(dfpm2)
-# Volcano plots indicate the fold change (either positive or negative) in the x axis 
-#and a significance value (such as the p-value or the adjusted p-value, i.e. limmapval) in the y axis
-
-#The ‘limmapval’ columns contains the corrected pvalues; 
-#these must be converted to the negative of their logarithm base 10 before plotting, 
-#i.e -log10(p-value) or -log10(limmapval).
-#Since volacno plots are scatter plots, we can use geom_point() to generate one with ggplot2
-#the higher the position of a point, the more significant its value is (y axis).
-#Points with positive fold change values (to the right) are up-regulated and 
-#points with negative fold change values (to the left) are down-regulated (x axis).
-
-p1 <- ggplot(dfpm2, aes(x =limmaLFC, y=-log(limmapval,10))) + # -log10 conversion  
-  geom_point(size = 2/5) +
-  xlab(expression("log"[2]*"limmaLFC")) + 
-  ylab(expression("-log"[10]*"limmapval"))
-p1
-
-#Adding color to differentially expressed genes (DEGs)
-#Differentially expressed genes (DEGs) are usally considered as those with 
-#an absolute fold change greater or equal to 2 and a limmapval value of 0.05 or less. 
-#So, we can make our volcano plot a bit more informative if we add some color to the DEGs in the plot. 
-#To do so, we’ll add an additional column, named ‘Expression’, 
-#indicating whether the expression of a gene is up-regulated, down-regulated, or unchanged
-
-dfpm2 <- dfpm2 %>% 
-  mutate(
-    Expression = case_when(limmaLFC >= log(2) & limmapval <= 0.05 ~ "Up-regulated",
-                           limmaLFC <= -log(2) & limmapval <= 0.05 ~ "Down-regulated",
-                           TRUE ~ "Unchanged")
-  )
-head(dfpm2) %>%
-  knitr_table()
-
-p2 <- ggplot(dfpm2, aes(limmaLFC, -log(limmapval,10))) +
-  geom_point(aes(color = Expression), size = 2/5) +
-  xlab(expression("log"[2]*"FC")) + 
-  ylab(expression("-log"[10]*"limmapval")) +
-  scale_color_manual(values = c("dodgerblue3", "gray50", "firebrick3")) +
-  guides(colour = guide_legend(override.aes = list(size=1.5))) 
-p2
-
-#If we want to know how many genes are up- or down-regulated, or unchanged,
-#we can use dplyr’s count() function.
-
-dfpm2 %>% 
-  count(Expression) %>% 
-  knitr_table()
-
-p2 <- ggplot(dfpm1, aes(limmaLFC, -log(limmapval,10))) +
-  geom_point(aes(color = Expression), size = 2/5) +
-  xlab(expression("log"[2]*"limmaLFC")) + 
-  ylab(expression("-log"[10]*"limmapval")) +
-  scale_color_manual(values = c("dodgerblue3", "gray50", "firebrick3")) +
-  guides(colour = guide_legend(override.aes = list(size=1.5))) 
-p2
-
-#If we want to know how many genes are up- or down-regulated, or unchanged,
-#we can use dplyr’s count() function.
-dfpm2 %>% 
-  count(Expression) %>% 
-  knitr_table()
-
-#further methods for volcano plots
-dfpm2 <- dfpm2 %>%
-  mutate(
-    Significance = case_when(
-      abs(limmaLFC) >= log(2) & limmapval <= 0.05 & limmapval > 0.01 ~ "limmapval 0.05",
-      abs(limmaLFC) >= log(2) & limmapval <= 0.01 & limmapval > 0.001 ~ "limmapval 0.01",
-      abs(limmaLFC) >= log(2) & limmapval <= 0.001 ~ "limmapval 0.001",
-      TRUE ~ "Unchanged")
-  )
-head(dfpm2) %>%
-  knitr_table()
-
-p3 <- ggplot(dfpm2, aes(limmaLFC, -log(limmapval,10))) +
-  geom_point(aes(color = Significance), size = 2/5) +
-  xlab(expression("log"[2]*"FC")) +
-  ylab(expression("-log"[10]*"limmapval")) +
-  scale_color_viridis_d() +
-  guides(colour = guide_legend(override.aes = list(size=1.5)))
-
-p3
-
-dfpm2 %>%
-  count(Expression, Significance) %>%
-  knitr_table()
-
-topup <- 1
-topdown <- 163
-top_genes <- bind_rows(
-  dfpm2 %>% 
-    filter(Expression == 'Up-regulated') %>% 
-    arrange(limmapval, desc(abs(limmaLFC))) %>%
-    head(topup),
-  dfpm2 %>% 
-    filter(Expression == 'Down-regulated') %>% 
-    arrange(limmapval, desc(abs(limmaLFC)))%>%
-    head(topdown)
-)
-top_genes %>% 
-  knitr_table()
-p3 <-  p3 +
-  geom_label_repel(data = top_genes,
-                   mapping = aes(limmaLFC, -log(limmapval,10), label = Numbers),
-                   size = 2)
-p3
-
-
-

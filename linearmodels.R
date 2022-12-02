@@ -293,7 +293,6 @@ head(contpm1)
 #using default lm function
 fitpm1 <- lm(values~0+group, data = spm1)
 summary(fitpm1)
-#plot(fitpm1)
 # glht already adjust pvalues
 confit=glht(fitpm1, t(contpm1))
 lmcoef = confit$coef
@@ -305,7 +304,6 @@ spm1limma=data.frame(t(spm1$values))
 colnames(spm1limma)=spm1$group
 #generate canonical linear model
 limfit = lmFit(spm1limma,Xpm1)
-
 #extract contrasts
 limcont = contrasts.fit(limfit, contpm1)
 #calculate empirical bayes moderated t statistics
@@ -314,7 +312,6 @@ limmaLFC=eb$coefficients
 #pval = eb$p.value
 #Benjamini Hochberg correction 
 limmapval <- p.adjust(eb$p.value,method="fdr")
-
 
 #making a dataframe of limmaLFC ie. estimate values and limmapval ie. p values for volcano plot
 limmaLFC = t(limmaLFC)
@@ -333,8 +330,6 @@ head(dfpm1)
 #the higher the position of a point, the more significant its value is (y axis).
 #Points with positive fold change values (to the right) are up-regulated and 
 #points with negative fold change values (to the left) are down-regulated (x axis).
-
-volcanoplot(eb, coef = "contrasts")
 
 p1 <- ggplot(dfpm1, aes(x =limmaLFC, y=-log(limmapval,10))) + # -log10 conversion  
   geom_point(size = 2/5) +
@@ -360,7 +355,7 @@ head(dfpm1) %>%
 
 p2 <- ggplot(dfpm1, aes(limmaLFC, -log(limmapval,10))) +
   geom_point(aes(color = Expression), size = 2/5) +
-  xlab(expression("log"[2]*"limmaLFC")) + 
+  xlab(expression("log"[2]*"FC")) + 
   ylab(expression("-log"[10]*"limmapval")) +
   scale_color_manual(values = c("dodgerblue3", "gray50", "firebrick3")) +
   guides(colour = guide_legend(override.aes = list(size=1.5))) 
@@ -368,6 +363,7 @@ p2
 
 #If we want to know how many genes are up- or down-regulated, or unchanged,
 #we can use dplyr’s count() function.
+
 dfpm1 %>% 
   count(Expression) %>% 
   knitr_table()
@@ -411,17 +407,18 @@ top_genes <- bind_rows(
 )
 top_genes %>% 
   knitr_table()
-p3 <-  p3 +
-  geom_label_repel(data = top_genes,
-                   mapping = aes(limmaLFC, -log(limmapval,10), label = Numbers),
-                   size = 2)
-p3
+# p3 <-  p3 +
+#   geom_label_repel(data = top_genes,
+#                    mapping = aes(limmaLFC, -log(limmapval,10), label = Numbers),
+#                    size = 2)+ geom_text_repel(aes())
+#+theme_classic(base_size = 16)
+p3 <- p3+ geom_text_repel(data = top_genes, aes(limmaLFC, -log(limmapval,10), label = Numbers))+theme_classic(base_size = 16)
 
+p3
 # LINEAR MODEL FOR PM2 - 
 
 #this our scaled pm1 table with values , light condition and 
 #metabolites stacked in their repective columns and we use it to fit the model now
-
 head(spm2) 
 
 #grouping the metabolite and light condition together
@@ -462,10 +459,11 @@ for ( i in 1:ncol(Xpm2))
 #so that they do not introduce NA's in pvalue calculation 
 
 #summary function literally fails if i have NAs
-#vec = setdiff(vec, c("Negative.ControlLL-Negative.ControlLL"))
-#vec2 = setdiff(vec2, c("Negative.ControlHL-Negative.ControlHL"))
+vec = setdiff(vec, c("Negative.ControlLL-Negative.ControlLL"))
+vec2 = setdiff(vec2, c("Negative.ControlHL-Negative.ControlHL"))
 
 metabolitevec <- paste(vec2,vec, sep ="-")
+
 #metabolitevec <- setdiff(metabolitevec, c("Negative.ControlHL-Negative.ControlHL-Negative.ControlLL-Negative.ControlLL"))
 
 contpm2=makeContrasts(contrasts =c(vec2, vec, metabolitevec), levels=Xpm2)
@@ -476,7 +474,7 @@ summary(fitpm2)
 # glht already adjust pvalues
 confit=glht(fitpm2, t(contpm2))
 lmcoef = confit$coef
-summary(confit) #doesnt work, tried lines 283-285,, still doesnt work
+#summary(confit) #doesnt work, 
 
 ### LIMMA IMPLEMENTATION
 #We trasnfrom the data here into limma fromat for 1 gene
@@ -493,6 +491,9 @@ limmaLFC=eb$coefficients
 #Benjamini Hochberg correction 
 limmapval <- p.adjust(eb$p.value,method="fdr")
 
+volcanoplot(eb, coef =limmaLFC, highlight=10,col="red" )
+
+
 #making a dataframe of limmaLFC ie. estimate values and limmapval ie. p values for volcano plot
 limmaLFC = t(limmaLFC)
 dfpm2 <- as.data.frame(cbind(limmaLFC, limmapval))
@@ -500,16 +501,6 @@ dfpm2 <- tibble::rownames_to_column(dfpm2, "contrasts")
 dfpm2 <- tibble::rownames_to_column(dfpm2, "Numbers") 
 colnames(dfpm2) = c("Numbers", "contrasts", "limmaLFC", "limmapval")
 head(dfpm2)
-# Volcano plots indicate the fold change (either positive or negative) in the x axis 
-#and a significance value (such as the p-value or the adjusted p-value, i.e. limmapval) in the y axis
-
-#The ‘limmapval’ columns contains the corrected pvalues; 
-#these must be converted to the negative of their logarithm base 10 before plotting, 
-#i.e -log10(p-value) or -log10(limmapval).
-#Since volacno plots are scatter plots, we can use geom_point() to generate one with ggplot2
-#the higher the position of a point, the more significant its value is (y axis).
-#Points with positive fold change values (to the right) are up-regulated and 
-#points with negative fold change values (to the left) are down-regulated (x axis).
 
 p1 <- ggplot(dfpm2, aes(x =limmaLFC, y=-log(limmapval,10))) + # -log10 conversion  
   geom_point(size = 2/5) +
@@ -547,22 +538,6 @@ p2
 dfpm2 %>% 
   count(Expression) %>% 
   knitr_table()
-
-p2 <- ggplot(dfpm1, aes(limmaLFC, -log(limmapval,10))) +
-  geom_point(aes(color = Expression), size = 2/5) +
-  xlab(expression("log"[2]*"limmaLFC")) + 
-  ylab(expression("-log"[10]*"limmapval")) +
-  scale_color_manual(values = c("dodgerblue3", "gray50", "firebrick3")) +
-  guides(colour = guide_legend(override.aes = list(size=1.5))) 
-p2
-
-#If we want to know how many genes are up- or down-regulated, or unchanged,
-#we can use dplyr’s count() function.
-dfpm2 %>% 
-  count(Expression) %>% 
-  knitr_table()
-
-#further methods for volcano plots
 dfpm2 <- dfpm2 %>%
   mutate(
     Significance = case_when(
@@ -606,6 +581,7 @@ p3 <-  p3 +
                    mapping = aes(limmaLFC, -log(limmapval,10), label = Numbers),
                    size = 2)
 p3
+
 
 
 

@@ -1,3 +1,4 @@
+library("limma")
 Scaling <- function(table)
 {
   #converting dataframe into matrix
@@ -95,4 +96,15 @@ Difference <- function(contrast)
   }
   return(diffcontrast)
 }
+
+
+# A short function for outputting the tables
+knitr_table <- function(x) {
+  x %>% 
+    knitr::kable(format = "html", digits = Inf, 
+                 format.args = list(big.mark = ",")) %>%
+    kableExtra::kable_styling(font_size = 15)
+}
+
+
 
