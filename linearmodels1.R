@@ -304,7 +304,7 @@ contpm1=makeContrasts(contrasts =c(vec2, vec, metabolitevec), levels=Xpm1)
 fitpm1 <- lm(values~0+group, data = spm1)
 # glht already adjust pvalues
 confit=glht(fitpm1, t(contpm1))
-summarypm1= summary(confit)
+summarypm1= summary(confit, test = adjusted(type = "fdr"))
 pval =as.data.frame(summarypm1$test$pvalues) #pvalues
 lfc= as.data.frame(summarypm1$test$coefficients) #coefficients
 
@@ -456,6 +456,21 @@ Xpm2<-model.matrix(~0+group, data =spm2)
 #remove group prefix - here is one example on how to get contrast which you can then use to extract inference statistics please write a loop that extracts all other contrasts
 colnames(Xpm2)=gsub("^group", "", colnames(Xpm2))
 
+###Compare the variances
+#Create table of sample variances
+pm12var=data.frame(pm1var=aggregate(values~group, data=spm1, var), pm2var=aggregate(values~group, data=spm2, var))
+#test if sample variances are equal for pm1
+pm1vartest=bartlett.test(values~group, data=spm1)
+#test if sample variances are equal for pm2
+pm2vartest=bartlett.test(values~group, data=spm2)
+#plot boxplot of sample variances with test results
+limits=boxplot(pm12var[, c("pm1var.values", "pm2var.values")], names=c("PM1", "PM2"), ylab="Var", ylim=c(0,max(c(pm12var$pm1var.values, pm12var$pm2var.values))*1.2))
+ypos= y=apply(pm12var[, c("pm1var.values", "pm2var.values")], 2, max)
+text( 
+  x=c(1:2), 
+  y=ypos + 0.1*max(ypos), 
+  paste("p = ",signif(c(pm1vartest$p.value, pm2vartest$p.value),3),sep="")  
+)
 #taking out the column names of the Xpm2 matrix for the metabolite names
 cHL= Xpm2[,161] #negative control HL 
 cLL= Xpm2[,162] # negative controlLL
@@ -518,8 +533,8 @@ contpm2=makeContrasts(contrasts =c(vec2, vec, metabolitevec), levels=Xpm2)
 
 fitpm2 <- lm(values~0+group, data = spm2)
 # glht already adjust pvalues
-confit=glht(fitpm2, t(contpm2))
-summarypm2= summary(confit)
+confit2=glht(fitpm2, t(contpm2))
+summarypm2= summary(confit2, test = adjusted(type = "hochberg"))
 pval =as.data.frame(summarypm2$test$pvalues) #pvalues
 lfc= as.data.frame(summarypm2$test$coefficients) #coefficients
 
