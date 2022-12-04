@@ -235,14 +235,13 @@ summary(fitpmc)
 
 #this our scaled pm1 table with values , light condition and 
 #metabolites stacked in their repective columns and we use it to fit the model now
-head(spm1stacked)
+#head(spm1stacked)
 head(spm1) 
 
 #grouping the metabolite and light condition together
 spm1$group <- factor(paste0(spm1$metabolite, spm1$light_condition))
 head(spm1)
 Xpm1<-model.matrix(~0+group, data =spm1)
-
 ### R base LM IMPLEMENTATION
 #remove group prefix - here is one example on how to get contrast which you can then use to extract inference statistics please write a loop that extracts all other contrasts
 colnames(Xpm1)=gsub("^group", "", colnames(Xpm1))
@@ -276,8 +275,9 @@ for ( i in 1:ncol(Xpm1))
 #so that they do not introduce NA's in pvalue calculation 
 
 #summary function literally fails if i have NAs
-#vec = setdiff(vec, c("Negative.ControlLL-Negative.ControlLL"))
-#vec2 = setdiff(vec2, c("Negative.ControlHL-Negative.ControlHL"))
+vec = setdiff(vec, c("Negative.ControlLL-Negative.ControlLL"))
+vec2 = setdiff(vec2, c("Negative.ControlHL-Negative.ControlHL"))
+
 metabolitevec1 = vector()
 for ( i in 1: length(vec))
 {
@@ -292,18 +292,57 @@ for ( i in 1: length(vec2))
 }
 
 metabolitevec <- paste(metabolitevec2, metabolitevec1, sep ="-")
+
 #metabolitevec <- setdiff(metabolitevec, c("( Negative.ControlHL-Negative.ControlHL )-( Negative.ControlLL-Negative.ControlLL )"))
 
 contpm1=makeContrasts(contrasts =c(vec2, vec, metabolitevec), levels=Xpm1)
-head(contpm1)
+
+
+
 #using default lm function
+
 fitpm1 <- lm(values~0+group, data = spm1)
-summary(fitpm1)
-#plot(fitpm1)
 # glht already adjust pvalues
 confit=glht(fitpm1, t(contpm1))
-lmcoef = confit$coef
-summary(confit) #doesnt work, tried lines 283-285,, still doesnt work
+summarypm1= summary(confit)
+pval =as.data.frame(summarypm1$test$pvalues) #pvalues
+lfc= as.data.frame(summarypm1$test$coefficients) #coefficients
+
+lmpm1 <- as.data.frame(cbind(lfc, pval))
+lmpm1 <- tibble::rownames_to_column(lmpm1, "contrasts") 
+#dfpm1 <- tibble::rownames_to_column(dfpm1, "Numbers") 
+colnames(lmpm1) = c( "contrasts", "lmlfc", "lmpval")
+head(lmpm1)
+# Volcano pl
+
+p <- ggplot(data=lmpm1, aes(x=lmlfc, y=-log10(lmpval))) + geom_point() + theme_minimal()
+p
+
+
+lmpm1$diffexpressed <- "NO"
+# if limmaLFC > 0.6 and pvalue < 0.05, set as "UP"  for up regualtion
+lmpm1$diffexpressed[lmpm1$lmlfc > 0.6 & lmpm1$lmpval < 0.05] <- "UP"
+# if limmaLFC < -0.6 and pvalue < 0.05, set as "DOWN" for down regulation
+lmpm1$diffexpressed[lmpm1$lmlfc < -0.6 & lmpm1$lmpval< 0.05] <- "DOWN"
+p <- ggplot(data=lmpm1, aes(x=lmlfc, y=-log10(lmpval), col=diffexpressed)) + geom_point() + theme_minimal()
+p
+
+# Now write down the name of genes beside the points...
+# Create a new column "delabel" to de, that will contain the name of genes differentially 
+#expressed (NA in case they are not)
+
+lmpm1$label <- NA
+lmpm1$label[lmpm1$diffexpressed != "NO"] <- lmpm1$contrasts[lmpm1$diffexpressed != "NO"]
+
+ggplot(data=lmpm1, aes(x=lmlfc, y=-log10(lmpval), col=diffexpressed)) + 
+  geom_point() + 
+  theme_minimal() +
+  geom_text(data = lmpm1, aes(label = label), check_overlap = TRUE, size = 3, hjust = 0.5)
+
+
+
+
+
 
 ### LIMMA IMPLEMENTATION
 #We trasnfrom the data here into limma fromat for 1 gene
@@ -321,6 +360,17 @@ limmaLFC=eb$coefficients
 #pval = eb$p.value
 #Benjamini Hochberg correction 
 limmapval <- p.adjust(eb$p.value,method="fdr")
+
+#check for NAS
+
+p= as.data.frame(limmapval)
+lf = as.data.frame(limmaLFC)
+any(is.na(p))
+which(is.na(p)==TRUE) #taking out the positions of NAs
+any(is.na(lf))
+#find out which components are NAs
+lf[,c(83, 179, 275)]
+#this can be removed if i remove these comparisons in lines 278-279 by using set diff
 
 
 #making a dataframe of limmaLFC ie. estimate values and limmapval ie. p values for volcano plot
@@ -394,6 +444,117 @@ ggplot(data=dfpm1, aes(x=limmaLFC, y=-log10(limmapval), col=diffexpressed)) +
 #this our scaled pm1 table with values , light condition and 
 #metabolites stacked in their repective columns and we use it to fit the model now
 
+#lm implementation
+head(spm2) 
+
+#grouping the metabolite and light condition together
+spm2$group <- factor(paste0(spm2$metabolite, spm2$light_condition))
+head(spm2)
+Xpm2<-model.matrix(~0+group, data =spm2)
+
+### R base LM IMPLEMENTATION
+#remove group prefix - here is one example on how to get contrast which you can then use to extract inference statistics please write a loop that extracts all other contrasts
+colnames(Xpm2)=gsub("^group", "", colnames(Xpm2))
+
+#taking out the column names of the Xpm2 matrix for the metabolite names
+cHL= Xpm2[,161] #negative control HL 
+cLL= Xpm2[,162] # negative controlLL
+
+#contpm=makeContrasts(contrasts =c("MaltoseHL-Negative.ControlHL", "MaltoseLL-Negative.ControlLL", "(MaltoseHL-Negative.ControlHL)-(MaltoseLL-Negative.ControlLL)"), levels=Xpm1)
+#head(contpm)
+
+#the following code is to create a character vector of the column names to calculate the
+#differences and differences of the differences using the makeContrasts 
+
+vec <- vector(mode = "character", length = ncol(Xpm2)/2)
+vec2 <- vector(mode = "character", length = ncol(Xpm2)/2)
+for ( i in 1:ncol(Xpm2))
+{
+  if (i%%2==0)
+  {
+    vec[i/2] = paste(colnames(Xpm2)[i], "Negative.ControlLL", sep = "-")
+    
+  }
+  else
+  {
+    vec2[i%/%2+1] = paste(colnames(Xpm2)[i], "Negative.ControlHL", sep = "-")
+  }
+}
+#removing "Negative.ControlHL-Negative.ControlHL", "Negative.ControlLL-Negative.ControlLL", 
+#"Negative.ControlHL-Negative.ControlHL-Negative.ControlLL-Negative.ControlLL"
+#so that they do not introduce NA's in pvalue calculation 
+
+#summary function literally fails if i have NAs
+
+
+vec = setdiff(vec, c("Negative.ControlLL-Negative.ControlLL"))
+vec2 = setdiff(vec2, c("Negative.ControlHL-Negative.ControlHL"))
+
+metabolitevec1 = vector()
+for ( i in 1: length(vec))
+{
+  metabolitevec1[i] = paste( c("("), vec[i], c(")"))
+}
+
+metabolitevec2 = vector()
+
+for ( i in 1: length(vec2))
+{
+  metabolitevec2[i] = paste( c("("), vec2[i], c(")"))
+}
+
+
+
+
+metabolitevec <- paste(metabolitevec2, metabolitevec1, sep ="-")
+
+#metabolitevec <- setdiff(metabolitevec, c("Negative.ControlHL-Negative.ControlHL-Negative.ControlLL-Negative.ControlLL"))
+
+contpm2=makeContrasts(contrasts =c(vec2, vec, metabolitevec), levels=Xpm2)
+
+
+
+#using default lm function
+
+fitpm2 <- lm(values~0+group, data = spm2)
+# glht already adjust pvalues
+confit=glht(fitpm2, t(contpm2))
+summarypm2= summary(confit)
+pval =as.data.frame(summarypm2$test$pvalues) #pvalues
+lfc= as.data.frame(summarypm2$test$coefficients) #coefficients
+
+lmpm2 <- as.data.frame(cbind(lfc, pval))
+lmpm2<- tibble::rownames_to_column(lmpm2, "contrasts") 
+#dfpm1 <- tibble::rownames_to_column(dfpm1, "Numbers") 
+colnames(lmpm2) = c( "contrasts", "lmlfc", "lmpval")
+head(lmpm2)
+
+p <- ggplot(data=lmpm2, aes(x=lmlfc, y=-log10(lmpval))) + geom_point() + theme_minimal()
+p
+
+
+lmpm2$diffexpressed <- "NO"
+# if limmaLFC > 0.6 and pvalue < 0.05, set as "UP"  for up regualtion
+lmpm2$diffexpressed[lmpm2$lmlfc > 0.6 & lmpm2$lmpval< 0.05] <- "UP"
+# if limmaLFC < -0.6 and pvalue < 0.05, set as "DOWN" for down regulation
+lmpm2$diffexpressed[lmpm2$lmlfc < -0.6 & lmpm2$lmpval < 0.05] <- "DOWN"
+p <- ggplot(data=lmpm2, aes(x=lmlfc, y=-log10(lmpval), col=diffexpressed)) + geom_point() + theme_minimal()
+p
+
+#which metabolites are down regulated, upregulated or none ?
+
+lmpm2$label <- NA
+lmpm2$label[lmpm2$diffexpressed != "NO"] <- lmpm2$contrasts[lmpm2$diffexpressed != "NO"]
+
+ggplot(data=lmpm2, aes(x=lmlfc, y=-log10(lmpval), col=diffexpressed)) + 
+  geom_point() + 
+  theme_minimal() +
+  geom_text(data = lmpm2, aes(label = label), check_overlap = TRUE, size = 3 , vjust =0.5 ,hjust = 0.5 )
+
+
+
+
+#limma implementation
 head(spm2) 
 
 #grouping the metabolite and light condition together
@@ -434,8 +595,8 @@ for ( i in 1:ncol(Xpm2))
 #so that they do not introduce NA's in pvalue calculation 
 
 #summary function literally fails if i have NAs
-#vec = setdiff(vec, c("Negative.ControlLL-Negative.ControlLL"))
-#vec2 = setdiff(vec2, c("Negative.ControlHL-Negative.ControlHL"))
+vec = setdiff(vec, c("Negative.ControlLL-Negative.ControlLL"))
+vec2 = setdiff(vec2, c("Negative.ControlHL-Negative.ControlHL"))
 
 metabolitevec1 = vector()
 for ( i in 1: length(vec))
@@ -450,7 +611,11 @@ for ( i in 1: length(vec2))
   metabolitevec2[i] = paste( c("("), vec2[i], c(")"))
 }
 
+
+
+
 metabolitevec <- paste(metabolitevec2, metabolitevec1, sep ="-")
+
 #metabolitevec <- setdiff(metabolitevec, c("Negative.ControlHL-Negative.ControlHL-Negative.ControlLL-Negative.ControlLL"))
 
 contpm2=makeContrasts(contrasts =c(vec2, vec, metabolitevec), levels=Xpm2)
@@ -458,11 +623,6 @@ head(contpm2)
 #using default lm function
 fitpm2 <- lm(values~0+group, data = spm2)
 summary(fitpm2)
-#plot(fitpm2)
-# glht already adjust pvalues
-confit=glht(fitpm2, t(contpm2))
-lmcoef = confit$coef
-summary(confit) #doesnt work, tried lines 283-285,, still doesnt work
 
 ### LIMMA IMPLEMENTATION
 #We trasnfrom the data here into limma fromat for 1 gene
