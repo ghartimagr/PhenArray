@@ -223,9 +223,10 @@ bwplot(spm2$values~spm2$metabolite | spm2$light_condition, col= rainbow(ncol(pm1
 #forming a group row in the dataframe with position and light conditions (variable) columns combined
 snewpmcontrol$group <- factor(paste0(snewpmcontrol$position, snewpmcontrol$variable))
 head(snewpmcontrol)
+
+X <- model.matrix(~0+group, data = snewpmcontrol)
 colnames(X)
 head(X)
-X <- model.matrix(~0+group, data = snewpmcontrol)
 fitpmc <- lm(value~0+group, data = snewpmcontrol)
 summary(fitpmc)
 #plot(fitpmc)
@@ -276,8 +277,9 @@ for ( i in 1:ncol(Xpm1))
 #so that they do not introduce NA's in pvalue calculation 
 
 #summary function literally fails if i have NAs
-#vec = setdiff(vec, c("Negative.ControlLL-Negative.ControlLL"))
-#vec2 = setdiff(vec2, c("Negative.ControlHL-Negative.ControlHL"))
+
+vec = setdiff(vec, c("Negative.ControlLL-Negative.ControlLL"))
+vec2 = setdiff(vec2, c("Negative.ControlHL-Negative.ControlHL"))
 metabolitevec1 = vector()
 for ( i in 1: length(vec))
 {
@@ -302,9 +304,12 @@ summary(fitpm1)
 #plot(fitpm1)
 # glht already adjust pvalues
 confit=glht(fitpm1, t(contpm1))
-lmcoef = confit$coef
-summary(confit) #doesnt work, tried lines 283-285,, still doesnt work
-
+#lmcoef = confit$coef
+pm1test=summary(confit, test = adjusted(type = "hochberg")) # there seems to be a bug in the standard function implemented in adjusted(), with this additional arguments it works pvalues are already adjusted using benjamini hochber corrections
+dfglht=as.data.frame(cbind(pm1test$test$coefficients, pm1test$test$pvalues))
+pfglhtplot <- ggplot(data=dfglht, aes(x=V1, y=-log10(V2))) + geom_point() + theme_minimal()
+dfglht$contrasts=rownames(dfglht)
+plot_dfglht=dfglht
 ### LIMMA IMPLEMENTATION
 #We trasnfrom the data here into limma fromat for 1 gene
 spm1limma=data.frame(t(spm1$values))
@@ -401,6 +406,9 @@ spm2$group <- factor(paste0(spm2$metabolite, spm2$light_condition))
 head(spm2)
 Xpm2<-model.matrix(~0+group, data =spm2)
 
+
+#compare variances 
+pm12var=data.frame(pm1var=aggregate(values~group, data=spm1, var), pm2var=aggregate(values~group, data=spm2, var))
 ### R base LM IMPLEMENTATION
 #remove group prefix - here is one example on how to get contrast which you can then use to extract inference statistics please write a loop that extracts all other contrasts
 colnames(Xpm2)=gsub("^group", "", colnames(Xpm2))
