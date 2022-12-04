@@ -11,8 +11,11 @@ library("limma")
 source("Scaling.R") #contains all my functions for the project
 library("contrast")
 library("multcomp")
+<<<<<<< HEAD
 library("ggplot2")
 library("ggrepel")
+=======
+>>>>>>> 353ec73864ff4a1752f87a7a205db484b7a91ee8
 conv_metnames=function(metn) {
   #Function to convert an character vector or metabolite names into valid
   #R variable names
@@ -296,8 +299,12 @@ summary(fitpm1)
 #plot(fitpm1)
 # glht already adjust pvalues
 confit=glht(fitpm1, t(contpm1))
+<<<<<<< HEAD
 lmcoef = confit$coef
 summary(confit) #doesnt work, tried lines 283-285,, still doesnt work
+=======
+summary(confit)
+>>>>>>> 353ec73864ff4a1752f87a7a205db484b7a91ee8
 
 ### LIMMA IMPLEMENTATION
 #We trasnfrom the data here into limma fromat for 1 gene
