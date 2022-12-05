@@ -37,10 +37,14 @@ newpmcontrol = melt(pmcontrol, id = "position")
 head(newpmcontrol)
 #using bwplot from lattice library: values in y axis and positions in x axis
 #splitting the axes into LL and HL, coloring by the positions
+
+#boxplot with labels
+#bwplot(newpmcontrol$value~newpmcontrol$position|newpmcontrol$variable, 
+ #      col = as.numeric(as.factor(newpmcontrol$position)), ylab= "Values", xlab= "Position",scales =list(newpmcontrol$position, cex = 0.5, rot = 90))
+
+#boxplot without labels
 bwplot(newpmcontrol$value~newpmcontrol$position|newpmcontrol$variable, 
-       col = as.numeric(as.factor(newpmcontrol$position)), ylab= "Values", xlab= "Position")
-
-
+       col = as.numeric(as.factor(newpmcontrol$position)), ylab= "Values", xlab= "Position",scales=list(x=list(draw=FALSE))) #scales =list(newpmcontrol$position, cex = 0.5, rot = 90))
 #we see the position effect in the HL samples, the values on the left hand side
 # of the  plate seem to be higher, it might be because of the position of the light source
 #they might have positioned the light in the left hand corner that is why the samples there
@@ -76,8 +80,15 @@ head(Tpm1stacked)
 #and LL1, LL2 and LL3 into LL so that we can group the variables by HL and LL in boxplots
 pm1stacked<- Stacked(Tpm1stacked)
 head(pm1stacked)
+
+#bpxplot with metabolite names
+#bwplot(pm1stacked$values~pm1stacked$metabolite|pm1stacked$light_condition, col= 
+#rainbow(ncol(Tpm1)), ylab = "values", xlab = "metabolites", scales=list(x=list(pm1stacked$metabolite), cex = 0.7, rot = 90))
+
+#boxplot without metabolite names
 #boxplot(Tpm1stacked$values~Tpm1stacked$sample , col= rainbow(ncol(Tpm1)), ylab = "values", xlab = "metabolites")
-bwplot(pm1stacked$values~pm1stacked$metabolite|pm1stacked$light_condition, col= rainbow(ncol(Tpm1)), ylab = "values", xlab = "metabolites")
+bwplot(pm1stacked$values~pm1stacked$metabolite|pm1stacked$light_condition, 
+       col= rainbow(ncol(Tpm1)), ylab = "values", xlab = "metabolites", scales=list(x=list(draw=FALSE)))
 
 # PM2 PLATE
 #reading the PM2A sheet using xlsx library
@@ -111,7 +122,8 @@ head(pm2stacked)
 #using bwplot from the lattice library
 #values of the metabolites are in the y axis and metabolites are in the x-axis
 #the values are grouped together by HL and LL
-bwplot(pm2stacked$values~pm2stacked$metabolite|pm2stacked$light_condition, col= rainbow(ncol(Tpm1)), ylab = "values", xlab = "metabolites")
+bwplot(pm2stacked$values~pm2stacked$metabolite|pm2stacked$light_condition, 
+       col= rainbow(ncol(Tpm1)), ylab = "values", xlab = "metabolites", scales=list(x=list(draw=FALSE)))
 
 #STEP2 : SCALING AND LOG TRANSFORMATION
 #SCALING THE DATA TO REMOVE THE POSITION EFFECT SO THAT ONLY THE METABOLITE AND LIGHT EFFECTS REMAIN
@@ -152,7 +164,7 @@ snewpmcontrol = melt(snewpmcontrol, id = "position") #sort of rotating the data
 head(snewpmcontrol)
 #boxplot for the scaled values gives a straight line for HLs and LLs
 bwplot(snewpmcontrol$value~snewpmcontrol$position|snewpmcontrol$variable, 
-       col = as.numeric(as.factor(snewpmcontrol$position)), ylab= "Values", xlab= "Position")
+       col = as.numeric(as.factor(snewpmcontrol$position)), ylab= "Values", xlab= "Position", scales=list(x=list(draw=FALSE)))
 
 #SCALING THE PM1 TABLE
 #extracting the scaling factors for LL and HL
@@ -189,7 +201,7 @@ head(spm1stacked)
 spm1 <- Stacked(spm1stacked)
 head(spm1)
 #plotting values vs. metabolites grouped by HL and LL
-bwplot(spm1$values~spm1$metabolite | spm1$light_condition, col= rainbow(ncol(pm1new)), ylab = "values", xlab = "metabolites")
+bwplot(spm1$values~spm1$metabolite | spm1$light_condition, col= rainbow(ncol(pm1new)), ylab = "values", xlab = "metabolites", scales=list(x=list(draw=FALSE)))
 
 # SCALING PM2 TABLE
 
@@ -213,7 +225,8 @@ head(spm2stacked)
 spm2 <- Stacked(spm2stacked)
 head(spm2)
 #Values vs. Metabolite grouped by light condition 
-bwplot(spm2$values~spm2$metabolite | spm2$light_condition, col= rainbow(ncol(pm1new)), ylab = "values", xlab = "metabolites")
+bwplot(spm2$values~spm2$metabolite | spm2$light_condition, col= rainbow(ncol(pm1new)), 
+       ylab = "values", xlab = "metabolites", scales=list(x=list(draw=FALSE)))
 
 #STEP 3: FITTING THE LINEAR MODELS AFTER SCALING AND TRANSFORMING THE DATA
 
@@ -331,17 +344,14 @@ p
 # Create a new column "delabel" to de, that will contain the name of genes differentially 
 #expressed (NA in case they are not)
 
-lmpm1$label <- NA
-lmpm1$label[lmpm1$diffexpressed != "NO"] <- lmpm1$contrasts[lmpm1$diffexpressed != "NO"]
-
-ggplot(data=lmpm1, aes(x=lmlfc, y=-log10(lmpval), col=diffexpressed)) + 
-  geom_point() + 
-  theme_minimal() +
-  geom_text(data = lmpm1, aes(label = label), check_overlap = TRUE, size = 3, hjust = 0.5)
-
-
-
-
+#commenting the labels. we do not need it
+# lmpm1$label <- NA
+# lmpm1$label[lmpm1$diffexpressed != "NO"] <- lmpm1$contrasts[lmpm1$diffexpressed != "NO"]
+# 
+# ggplot(data=lmpm1, aes(x=lmlfc, y=-log10(lmpval), col=diffexpressed)) + 
+#   geom_point() + 
+#   theme_minimal() +
+#   geom_text(data = lmpm1, aes(label = label), check_overlap = TRUE, size = 3, hjust = 0.5)
 
 
 ### LIMMA IMPLEMENTATION
@@ -430,14 +440,14 @@ up
 # Now write down the name of genes beside the points...
 # Create a new column "delabel" to de, that will contain the name of genes differentially 
 #expressed (NA in case they are not)
-
-dfpm1$label <- NA
-dfpm1$label[dfpm1$diffexpressed != "NO"] <- dfpm1$contrasts[dfpm1$diffexpressed != "NO"]
-
-ggplot(data=dfpm1, aes(x=limmaLFC, y=-log10(limmapval), col=diffexpressed)) + 
-  geom_point() + 
-  theme_minimal() +
-  geom_text(data = dfpm1, aes(label = label), check_overlap = TRUE, size = 3, hjust = 0.5)
+# 
+# dfpm1$label <- NA
+# dfpm1$label[dfpm1$diffexpressed != "NO"] <- dfpm1$contrasts[dfpm1$diffexpressed != "NO"]
+# 
+# ggplot(data=dfpm1, aes(x=limmaLFC, y=-log10(limmapval), col=diffexpressed)) + 
+#   geom_point() + 
+#   theme_minimal() +
+#   geom_text(data = dfpm1, aes(label = label), check_overlap = TRUE, size = 3, hjust = 0.5)
 
 # LINEAR MODEL FOR PM2 - 
 
@@ -558,18 +568,16 @@ p
 
 #which metabolites are down regulated, upregulated or none ?
 
-lmpm2$label <- NA
-lmpm2$label[lmpm2$diffexpressed != "NO"] <- lmpm2$contrasts[lmpm2$diffexpressed != "NO"]
+# lmpm2$label <- NA
+# lmpm2$label[lmpm2$diffexpressed != "NO"] <- lmpm2$contrasts[lmpm2$diffexpressed != "NO"]
+# 
+# ggplot(data=lmpm2, aes(x=lmlfc, y=-log10(lmpval), col=diffexpressed)) + 
+#   geom_point() + 
+#   theme_minimal() +
+#   geom_text(data = lmpm2, aes(label = label), check_overlap = TRUE, size = 3 , vjust =0.5 ,hjust = 0.5 )
+# 
+# #limma implementation
 
-ggplot(data=lmpm2, aes(x=lmlfc, y=-log10(lmpval), col=diffexpressed)) + 
-  geom_point() + 
-  theme_minimal() +
-  geom_text(data = lmpm2, aes(label = label), check_overlap = TRUE, size = 3 , vjust =0.5 ,hjust = 0.5 )
-
-
-
-
-#limma implementation
 head(spm2) 
 
 #grouping the metabolite and light condition together
@@ -707,12 +715,69 @@ dfpm2[226,]
 # Now write down the name of genes beside the points...
 # Create a new column "delabel" to de, that will contain the name of genes differentially 
 #expressed (NA in case they are not)
+# 
+# dfpm2$label <- NA
+# dfpm2$label[dfpm2$diffexpressed != "NO"] <- dfpm2$contrasts[dfpm2$diffexpressed != "NO"]
+# 
+# ggplot(data=dfpm2, aes(x=limmaLFC, y=-log10(limmapval), col=diffexpressed)) + 
+#   geom_point() + 
+#   theme_minimal() +
+#   geom_text(data = dfpm2, aes(label = label), check_overlap = TRUE, size = 3 , vjust =0.5 ,hjust = 0.5 )
 
-dfpm2$label <- NA
-dfpm2$label[dfpm2$diffexpressed != "NO"] <- dfpm2$contrasts[dfpm2$diffexpressed != "NO"]
 
-ggplot(data=dfpm2, aes(x=limmaLFC, y=-log10(limmapval), col=diffexpressed)) + 
-  geom_point() + 
-  theme_minimal() +
-  geom_text(data = dfpm2, aes(label = label), check_overlap = TRUE, size = 3 , vjust =0.5 ,hjust = 0.5 )
+#STEP 4: HEATMAPS
+#For the results obtained from glht, prepare a heat map of the log fold changes 
+#in the three contrasts (columns are the contrasts and rows are metabolites (n_met*3) cells,
+#do NOT scale the values,
+#only cluster the rows, 
+#only show log fold change that is linked to a significant p-value 
+#set all other LFC values to NA and remove rows(metabolites) that only have NA values). 
 
+# PM1
+#extracting the log fold chnages and pvalues for pm1
+
+lfcpm1 =as.data.frame(summarypm1$test$coefficients)
+heat_pm1 = as.data.frame(cbind(lfcpm1[1:95,], lfcpm1[96:190,], lfcpm1[191:285,]))
+metabolites = pm1$metabolite
+metabolites = setdiff(metabolites, c("Negative.Control"))
+rownames(heat_pm1) = metabolites
+colnames(heat_pm1) = c("LLcontrasts", "HLcontrasts", "HL-LL contrasts")
+pheatmap(heat_pm1, cluster_rows = TRUE, cluster_cols = FALSE)
+
+lfcpm1 =as.data.frame(cbind(summarypm1$test$coefficients, summarypm1$test$pvalues))
+lfcpm1 <- tibble::rownames_to_column(lfcpm1, "contrasts")
+colnames(lfcpm1) = c("contrasts", "lfc", "pval" )
+
+for ( i in 1:nrow(lfcpm1))
+{
+  if (lfcpm1$pval[i] >= 0.05)
+  {
+    lfcpm1$pval[i]= NA
+    lfcpm1$lfc[i] = NA
+  }
+}
+
+heat_pm1 = as.data.frame(cbind(lfcpm1[1:95,2], lfcpm1[96:190,2], lfcpm1[191:285,2]))
+metabolites = pm1$metabolite
+metabolites = setdiff(metabolites, c("Negative.Control"))
+rownames(heat_pm1) = metabolites
+colnames(heat_pm1) = c("LLcontrasts", "HLcontrasts", "HL-LL contrasts")
+#heat_pm1 <- na.omit(heat_pm1)
+#Delete rows with complete NAs
+heat_pm1 <- heat_pm1[rowSums(is.na(heat_pm1)) != ncol(heat_pm1), ]
+#heat_pm1<- filter(heat_pm1, rowSums(is.na(heat_pm1)) != ncol(heat_pm1))
+#heat_pm1[is.na(heat_pm1)] <- as.double("NA")
+pheatmap(heat_pm1, na_col="white", cluster_cols = FALSE, cluster_rows = TRUE)
+
+# llcontrast = as.data.frame(lmpm1$lmlfc[which(as.numeric(lmpm1$indices)<=95)])
+# #take out the signifcant columns and 
+# hlcontrast = which(as.numeric(lmpm1$indices)>95 & as.numeric(lmpm1$indices)<=190)
+# hl_ll_diffcontrast = which(as.numeric(lmpm1$indices)>190)
+# 
+# significant_pm1 = as.data.frame(c(llcontrast, hlcontrast, hl_ll_diffcontrast))
+
+library("superheat")
+superheat(heat_pm1,
+          # scale the matrix
+          # change color of missing values
+          heat.na.col = "white")
