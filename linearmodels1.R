@@ -767,7 +767,54 @@ colnames(heat_pm1) = c("LLcontrasts", "HLcontrasts", "HL-LL contrasts")
 heat_pm1 <- heat_pm1[rowSums(is.na(heat_pm1)) != ncol(heat_pm1), ]
 #heat_pm1<- filter(heat_pm1, rowSums(is.na(heat_pm1)) != ncol(heat_pm1))
 #heat_pm1[is.na(heat_pm1)] <- as.double("NA")
-pheatmap(heat_pm1, na_col="white", cluster_cols = FALSE, cluster_rows = TRUE)
+#heat_pm1[is.na(heat_pm1)] <- ""
+pheatmap(heat_pm1, na_col="white", scale = "none", cluster_cols = FALSE, cluster_rows = TRUE) #  not working
+
+# llcontrast = as.data.frame(lmpm1$lmlfc[which(as.numeric(lmpm1$indices)<=95)])
+# #take out the signifcant columns and 
+# hlcontrast = which(as.numeric(lmpm1$indices)>95 & as.numeric(lmpm1$indices)<=190)
+# hl_ll_diffcontrast = which(as.numeric(lmpm1$indices)>190)
+# 
+# significant_pm1 = as.data.frame(c(llcontrast, hlcontrast, hl_ll_diffcontrast))
+library("superheat")
+superheat(heat_pm1,
+          # scale the matrix
+          # change color of missing values
+          heat.na.col = "white")  
+
+# heatmap pm2
+lfcpm2 =as.data.frame(summarypm2$test$coefficients)
+heat_pm2 = as.data.frame(cbind(lfcpm2[1:95,], lfcpm2[96:190,], lfcpm2[191:285,]))
+metabolites = pm2$metabolite
+metabolites = setdiff(metabolites, c("Negative.Control"))
+rownames(heat_pm2) = metabolites
+colnames(heat_pm2) = c("LLcontrasts", "HLcontrasts", "HL-LL contrasts")
+pheatmap(heat_pm2, cluster_rows = TRUE, cluster_cols = FALSE)
+
+lfcpm2 =as.data.frame(cbind(summarypm2$test$coefficients, summarypm2$test$pvalues))
+lfcpm2 <- tibble::rownames_to_column(lfcpm2, "contrasts")
+colnames(lfcpm2) = c("contrasts", "lfc", "pval" )
+
+for ( i in 1:nrow(lfcpm2))
+{
+  if (lfcpm2$pval[i] >= 0.05)
+  {
+    lfcpm2$pval[i]= NA
+    lfcpm2$lfc[i] = NA
+  }
+}
+
+heat_pm2 = as.data.frame(cbind(lfcpm2[1:95,2], lfcpm2[96:190,2], lfcpm2[191:285,2]))
+metabolites = pm2$metabolite
+metabolites = setdiff(metabolites, c("Negative.Control"))
+rownames(heat_pm2) = metabolites
+colnames(heat_pm2) = c("LLcontrasts", "HLcontrasts", "HL-LL contrasts")
+#heat_pm1 <- na.omit(heat_pm1)
+#Delete rows with complete NAs
+heat_pm2 <- heat_pm2[rowSums(is.na(heat_pm2)) != ncol(heat_pm2), ]
+#heat_pm1<- filter(heat_pm1, rowSums(is.na(heat_pm1)) != ncol(heat_pm1))
+#heat_pm1[is.na(heat_pm1)] <- as.double("NA")
+pheatmap(heat_pm2, na_col="white", cluster_cols = FALSE, cluster_rows = TRUE)
 
 # llcontrast = as.data.frame(lmpm1$lmlfc[which(as.numeric(lmpm1$indices)<=95)])
 # #take out the signifcant columns and 
@@ -777,7 +824,8 @@ pheatmap(heat_pm1, na_col="white", cluster_cols = FALSE, cluster_rows = TRUE)
 # significant_pm1 = as.data.frame(c(llcontrast, hlcontrast, hl_ll_diffcontrast))
 
 library("superheat")
-superheat(heat_pm1,
+superheat(heat_pm2,
           # scale the matrix
           # change color of missing values
           heat.na.col = "white")
+
