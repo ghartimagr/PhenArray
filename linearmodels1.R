@@ -746,6 +746,10 @@ superheat(heat_pm2,
 
 
 #lm implementation after outlier removal
+# REPEATING THE ANALYSIS AFTER REMOVAL OF HIGH VARIANCE DATA
+# we will only use glht function and ANOVA for this part
+#since we kicked yout several groups from the pm2 dataset, we have to also kick them our from the contrast matrix
+
 head(spm2) 
 
 #grouping the metabolite and light condition together
@@ -991,6 +995,16 @@ pheatmap(heat_pm2, na_col="white", cluster_cols = FALSE, cluster_rows = TRUE)
 # 
 # significant_pm1 = as.data.frame(c(llcontrast, hlcontrast, hl_ll_diffcontrast))
 
+
+# heat_pm1 and heat_pm2 matrices consist of dataframe of metabolite with significant effect 
+# infirst col: metabliteLL - NegativeControlLL ( means LL and metabolite interaction), 
+# second col:metaboliteHL- NegativeControlHL
+# and  (metaboliteHL- NegativeControlHL)-(metabliteLL - NegativeControlLL)
+
+# IN the last row of the contrast matrix ie. (metaboliteHL- NegativeControlHL)-(metabliteLL - NegativeControlLL) 
+#only the metabolite effect remains , thus the are the metabolites that actually have effect on the gene expression
+#no matter what the light condition is
+
 library("superheat")
 superheat(heat_pm2,
           # scale the matrix
@@ -1003,25 +1017,3 @@ Ssuperheat(heat_pm2,
 
 # STEP 5 : BUILD SUPPORT VECTOR MACHINES AND RANDOM FOREST CLASSIFIERS TO SEPARATE
 #THE METABOLITES WHICH HAVE EFFECT FROM THE ONES WHICH DONOT
-
-
-# heat_pm1 and heat_pm2 matrices consist of dataframe of metabolite with significant effect 
-# infirst col: metabliteLL - NegativeControlLL ( means LL and metabolite interaction), 
-# second col:metaboliteHL- NegativeControlHL
-# and  (metaboliteHL- NegativeControlHL)-(metabliteLL - NegativeControlLL)
-# from here i can take out the metabolites which have no NA entry in the third column
-# and i go back to my scaled original dataset , add a new column  and then i set the metabolites that have effect to "YES"
-# and metabolites that do not have effect to "NO"
-# then i do the SVM and cross validation
-
-
-# IN the last row of the contrast matrix ie. (metaboliteHL- NegativeControlHL)-(metabliteLL - NegativeControlLL) 
-#only the metabolite effect remains , thus the are the metabolites that actually have effect on the gene expression
-#no matter what the light condition is
-# so i take out he indices of the metabolites that have significant values in the column ie. the values that are not NAs
-# because all the insignificant values are set to NA in the previous step before the heat map was done
-
-# REPEATING THE ANALYSIS AFTER REMOVAL OF HIGH VARIANCE DATA
-# we will only use glht function and ANOVA for this part
-#since we kicked yout several groups from the pm2 dataset, we have to also kick them our from the contrast matrix
- 
