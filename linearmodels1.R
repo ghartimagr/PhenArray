@@ -27,7 +27,6 @@ conv_metnames=function(metn) {
 }
 
 #STEP 1: PLOTTING THE RAW DATA: BOX PLOTS
-
 #CONTROL PLATE
 #loading the table from the excel sheet
 pmcontrol = read.xlsx("Data/three experiments_biolog PM1-PM2A_LL-HL.xlsx", sheetName = "control plate")
@@ -35,20 +34,11 @@ head(pmcontrol)
 #melt works like stack: stacking LL and HL columns into one for the box plot
 newpmcontrol = melt(pmcontrol, id = "position")
 head(newpmcontrol)
-#using bwplot from lattice library: values in y axis and positions in x axis
-#splitting the axes into LL and HL, coloring by the positions
-
-#boxplot with labels
-#bwplot(newpmcontrol$value~newpmcontrol$position|newpmcontrol$variable, 
- #      col = as.numeric(as.factor(newpmcontrol$position)), ylab= "Values", xlab= "Position",scales =list(newpmcontrol$position, cex = 0.5, rot = 90))
-
-#boxplot without labels
 bwplot(newpmcontrol$value~newpmcontrol$position|newpmcontrol$variable, 
        col = as.numeric(as.factor(newpmcontrol$position)), ylab= "luminescence values", xlab= "Position",scales=list(x=list(draw=FALSE))) #scales =list(newpmcontrol$position, cex = 0.5, rot = 90))
-#we see the position effect in thesamples, the values on the left hand side
+#we see the position effect in the samples, the values on the left hand side
 # of the  plate seem to be higher, it might be because of the position of the light source
-#they might have positioned the light in the left hand corner that is why the samples there
-#received more light
+#they might have positioned the light in the left hand corner that is why the samples there received more light
 
 #PM1 PLATE
 #reading the data from the excel sheet
@@ -65,8 +55,7 @@ head(Tpm1)
 colnames(Tpm1) <- pm1$metabolite
 rownames(Tpm1) <- c("LL1", "HL1", "LL2", "HL2", "LL3", "HL3")
 head(Tpm1)
-
-#to change rownames into legit column, we use the tibble library command
+#to change rownames into legit column
 Tpm1 <- tibble::rownames_to_column(Tpm1, "light_condition")
 head(Tpm1)
 #stacking all the metabolites into one column and their respective values into another column
@@ -80,12 +69,6 @@ head(Tpm1stacked)
 #and LL1, LL2 and LL3 into LL so that we can group the variables by HL and LL in boxplots
 pm1stacked<- Stacked(Tpm1stacked)
 head(pm1stacked)
-
-#bpxplot with metabolite names
-#bwplot(pm1stacked$values~pm1stacked$metabolite|pm1stacked$light_condition, col= 
-#rainbow(ncol(Tpm1)), ylab = "values", xlab = "metabolites", scales=list(x=list(pm1stacked$metabolite), cex = 0.7, rot = 90))
-
-#boxplot without metabolite names
 #boxplot(Tpm1stacked$values~Tpm1stacked$sample , col= rainbow(ncol(Tpm1)), ylab = "values", xlab = "metabolites")
 bwplot(pm1stacked$values~pm1stacked$metabolite|pm1stacked$light_condition, 
        col= rainbow(ncol(Tpm1)), ylab = "luminescence values", xlab = "metabolites", scales=list(x=list(draw=FALSE)))
@@ -124,15 +107,11 @@ head(pm2stacked)
 #the values are grouped together by HL and LL
 bwplot(pm2stacked$values~pm2stacked$metabolite|pm2stacked$light_condition, 
        col= rainbow(ncol(Tpm1)), ylab = "luminescence values", xlab = "metabolites", scales=list(x=list(draw=FALSE)))
-
 #STEP2 : SCALING AND LOG TRANSFORMATION
 #SCALING THE DATA TO REMOVE THE POSITION EFFECT SO THAT ONLY THE METABOLITE AND LIGHT EFFECTS REMAIN
 #TO REMOVE THE RIGHT SKEWNESS OF OUR DATA, WE USE LOG TRANSFORMATION
-
-
 #first we calculate the scaling factor
-#Scaling factor of a data point in the HL column is the value divided by the mean of whole HL col 
-#and the same holds for the LL col.
+#Scaling factor for HL :  data point in the HL column is  divided by the mean of whole HL column and the same holds for the LL col.
 
 #we initialize sftab to store the scaling factors then we iterate through rows and cols of the 
 #control table, and divide each value by mean of the whole column
@@ -150,13 +129,12 @@ for (i in 2:ncol(pmcontrol))
 head(sftab) #this returns the scaling factor
 
 #SCALING THE CONTROL TABLE
-
 #CtableUpdate is a function to scale the whole table
 #each datapoint is divided by the scaling factor of that position
 spmcontrol= CTableUpdate(pmcontrol)
 head(spmcontrol)
 #taking the LL and HL columns (2,3)  and log transforming
-logcontrol <- log10(spmcontrol[, c(2,3)])
+logcontrol <- log2(spmcontrol[, c(2,3)])
 #binding the position column from the original table and the new log transformed table
 snewpmcontrol <- cbind(spmcontrol[,1], logcontrol)
 colnames(snewpmcontrol) <- c("position", "LL", "HL")
@@ -204,12 +182,10 @@ head(spm1)
 bwplot(spm1$values~spm1$metabolite | spm1$light_condition, col= rainbow(ncol(pm1new)), ylab = "luminescence values", xlab = "metabolites", scales=list(x=list(draw=FALSE)))
 
 # SCALING PM2 TABLE
-
 scaledpm2 <- cbind(pm2[,c(1,2,3)],pm2[,4]/LLsf, pm2[,5]/HLsf, pm2[,6]/LLsf, pm2[,7]/HLsf, pm2[,8]/LLsf, pm2[,9]/HLsf)
 head(scaledpm2)
 colnames(scaledpm2) <- c("strain", "position", "metabolite", "LL1", "HL1", "LL2", "HL2", "LL3", "HL3" )
 head(scaledpm2)
-
 #again extracting the HL and LL cols and transposing the data to have metabolites as columns
 pm2new <-log2(t(scaledpm2[, c(4:9)]))
 pm2new <- as.data.frame(pm2new)
@@ -217,7 +193,6 @@ head(pm2new)
 colnames(pm2new) <- pm2$metabolite
 pm2new <- tibble::rownames_to_column(pm2new, "light_condition")
 head(pm2new)
-
 spm2stacked <- data.frame(pm2new[,1], stack(pm2new[2:97])) #stacking the categorical and numeric values into 2 cols
 head(spm2stacked)
 colnames(spm2stacked) <- c("light_condition", "values", "metabolite")
@@ -229,9 +204,7 @@ bwplot(spm2$values~spm2$metabolite | spm2$light_condition, col= rainbow(ncol(pm1
        ylab = "luminescence values", xlab = "metabolites", scales=list(x=list(draw=FALSE)))
 
 #STEP 3: FITTING THE LINEAR MODELS AFTER SCALING AND TRANSFORMING THE DATA
-
 #LINEAR MODEL FOR CONTROL PLATE
-
 #for model without intercept
 #forming a group row in the dataframe with position and light conditions (variable) columns combined
 snewpmcontrol$group <- factor(paste0(snewpmcontrol$position, snewpmcontrol$variable))
@@ -245,12 +218,10 @@ summary(fitpmc)
 
 
 # LINEAR MODEL FOR PM1 - 
-
 #this our scaled pm1 table with values , light condition and 
 #metabolites stacked in their repective columns and we use it to fit the model now
 #head(spm1stacked)
 head(spm1) 
-
 #grouping the metabolite and light condition together
 spm1$group <- factor(paste0(spm1$metabolite, spm1$light_condition))
 head(spm1)
@@ -258,17 +229,13 @@ Xpm1<-model.matrix(~0+group, data =spm1)
 ### R base LM IMPLEMENTATION
 #remove group prefix - here is one example on how to get contrast which you can then use to extract inference statistics please write a loop that extracts all other contrasts
 colnames(Xpm1)=gsub("^group", "", colnames(Xpm1))
-
 #taking out the column names of the Xpm1 matrix for the metabolite names
 cHL= Xpm1[,165] #negative control HL 
 cLL= Xpm1[,166] # negative controlLL
-
 #contpm=makeContrasts(contrasts =c("MaltoseHL-Negative.ControlHL", "MaltoseLL-Negative.ControlLL", "(MaltoseHL-Negative.ControlHL)-(MaltoseLL-Negative.ControlLL)"), levels=Xpm1)
 #head(contpm)
-
 #the following code is to create a character vector of the column names to calculate the
 #differences and differences of the differences using the makeContrasts 
-
 vec <- vector(mode = "character", length = ncol(Xpm1)/2)
 vec2 <- vector(mode = "character", length = ncol(Xpm1)/2)
 for ( i in 1:ncol(Xpm1))
@@ -286,52 +253,37 @@ for ( i in 1:ncol(Xpm1))
 #removing "Negative.ControlHL-Negative.ControlHL", "Negative.ControlLL-Negative.ControlLL", 
 #"Negative.ControlHL-Negative.ControlHL-Negative.ControlLL-Negative.ControlLL"
 #so that they do not introduce NA's in pvalue calculation 
-
 #summary function literally fails if i have NAs
 vec = setdiff(vec, c("Negative.ControlLL-Negative.ControlLL"))
 vec2 = setdiff(vec2, c("Negative.ControlHL-Negative.ControlHL"))
-
 metabolitevec1 = vector()
 for ( i in 1: length(vec))
 {
   metabolitevec1[i] = paste( c("("), vec[i], c(")"))
 }
-
 metabolitevec2 = vector()
-
 for ( i in 1: length(vec2))
 {
   metabolitevec2[i] = paste( c("("), vec2[i], c(")"))
 }
-
 metabolitevec <- paste(metabolitevec2, metabolitevec1, sep ="-")
-
 #metabolitevec <- setdiff(metabolitevec, c("( Negative.ControlHL-Negative.ControlHL )-( Negative.ControlLL-Negative.ControlLL )"))
-
 contpm1=makeContrasts(contrasts =c(vec2, vec, metabolitevec), levels=Xpm1)
-
-
-
 #using default lm function
-
 fitpm1 <- lm(values~0+group, data = spm1)
 # glht already adjust pvalues
 confit=glht(fitpm1, t(contpm1))
 summarypm1= summary(confit, test = adjusted(type = "fdr"))
 pval =as.data.frame(summarypm1$test$pvalues) #pvalues
 lfc= as.data.frame(summarypm1$test$coefficients) #coefficients
-
 lmpm1 <- as.data.frame(cbind(lfc, pval))
 lmpm1 <- tibble::rownames_to_column(lmpm1, "contrasts") 
 #dfpm1 <- tibble::rownames_to_column(dfpm1, "Numbers") 
 colnames(lmpm1) = c( "contrasts", "lmlfc", "lmpval")
 head(lmpm1)
-# Volcano pl
-
+# Volcano plot
 p <- ggplot(data=lmpm1, aes(x=lmlfc, y=-log10(lmpval))) + geom_point() + theme_minimal()
 p
-
-
 lmpm1$diffexpressed <- "NO"
 # if limmaLFC > 0.6 and pvalue < 0.05, set as "UP"  for up regualtion
 lmpm1$diffexpressed[lmpm1$lmlfc > 0.6 & lmpm1$lmpval < 0.05] <- "UP"
@@ -339,11 +291,9 @@ lmpm1$diffexpressed[lmpm1$lmlfc > 0.6 & lmpm1$lmpval < 0.05] <- "UP"
 lmpm1$diffexpressed[lmpm1$lmlfc < -0.6 & lmpm1$lmpval< 0.05] <- "DOWN"
 p <- ggplot(data=lmpm1, aes(x=lmlfc, y=-log10(lmpval), col=diffexpressed)) + geom_point() + theme_minimal()
 p
-
 # Now write down the name of genes beside the points...
 # Create a new column "delabel" to de, that will contain the name of genes differentially 
 #expressed (NA in case they are not)
-
 #commenting the labels. we do not need it
 # lmpm1$label <- NA
 # lmpm1$label[lmpm1$diffexpressed != "NO"] <- lmpm1$contrasts[lmpm1$diffexpressed != "NO"]
@@ -352,7 +302,6 @@ p
 #   geom_point() + 
 #   theme_minimal() +
 #   geom_text(data = lmpm1, aes(label = label), check_overlap = TRUE, size = 3, hjust = 0.5)
-
 
 ### LIMMA IMPLEMENTATION
 #We trasnfrom the data here into limma fromat for 1 gene
@@ -370,9 +319,7 @@ limmaLFC=eb$coefficients
 #pval = eb$p.value
 #Benjamini Hochberg correction 
 limmapval <- p.adjust(eb$p.value,method="fdr")
-
 #check for NAS
-
 p= as.data.frame(limmapval)
 lf = as.data.frame(limmaLFC)
 any(is.na(p))
@@ -381,8 +328,6 @@ any(is.na(lf))
 #find out which components are NAs
 lf[,c(83, 179, 275)]
 #this can be removed if i remove these comparisons in lines 278-279 by using set diff
-
-
 #making a dataframe of limmaLFC ie. estimate values and limmapval ie. p values for volcano plot
 limmaLFC = t(limmaLFC)
 dfpm1 <- as.data.frame(cbind(limmaLFC, limmapval))
@@ -392,7 +337,6 @@ colnames(dfpm1) = c( "contrasts", "limmaLFC", "limmapval")
 head(dfpm1)
 # Volcano plots indicate the fold change (either positive or negative) in the x axis 
 #and a significance value (such as the p-value or the adjusted p-value, i.e. limmapval) in the y axis
-
 #The ‘limmapval’ columns contains the corrected pvalues; 
 #these must be converted to the negative of their logarithm base 10 before plotting, 
 #i.e -log10(p-value) or -log10(limmapval).
@@ -403,7 +347,6 @@ head(dfpm1)
 
 p <- ggplot(data=dfpm1, aes(x=limmaLFC, y=-log10(limmapval))) + geom_point() + theme_minimal()
 p
-
 
 dfpm1$diffexpressed <- "NO"
 # if limmaLFC > 0.6 and pvalue < 0.05, set as "UP"  for up regualtion
@@ -425,7 +368,6 @@ for ( i in downregulated)
   j =j+1
 }
 down
-
 upregulated = as.vector(which((dfpm1$diffexpressed=="UP")==TRUE))
 length(upregulated)
 up = data.frame(matrix(NA, nrow =16, ncol = 4))
@@ -436,19 +378,6 @@ for ( i in upregulated)
   j =j+1
 }
 up
-
-# PM1
-#extracting the log fold changes and pvalues for pm1
-# 
-# lfcpm1 =as.data.frame(summarypm1$test$coefficients)
-# #making 3 columns: each for LL contrast, HL contrast and HL-Ll contrast
-# heat_pm1 = as.data.frame(cbind(lfcpm1[1:95,], lfcpm1[96:190,], lfcpm1[191:285,]))
-# metabolites = pm1$metabolite
-# metabolites = setdiff(metabolites, c("Negative.Control"))
-# rownames(heat_pm1) = metabolites
-# colnames(heat_pm1) = c("LLcontrasts", "HLcontrasts", "HL-LL contrasts")
-#pheatmap(heat_pm1, cluster_rows = TRUE, cluster_cols = FALSE)
-
 #binding coefficients and p values 
 lfcpm1 =as.data.frame(cbind(summarypm1$test$coefficients, summarypm1$test$pvalues))
 lfcpm1 <- tibble::rownames_to_column(lfcpm1, "contrasts")
@@ -467,34 +396,19 @@ for ( i in 1:nrow(lfcpm1))
 #taking out LFCs from the second column and arranging them in 3 columns for LL, HL and HL-LL contrast groups
 heat_pm1 = as.data.frame(cbind(lfcpm1[1:95,], lfcpm1[96:190,], lfcpm1[191:285,]))
 colnames(heat_pm1) = c("HLgroups", "HL_lfc", "HLpvalues", "LLgroups", "LL_lfc","LLpvalues" , "HL_LL_dif_groups", "HL_LL_dif_lfc", "HL_LL_dif_pvalues")
-
 #taking out the metabolite names 
 metNames_pm1= gsub("HL.+", "", heat_pm1[, "HLgroups"])
 #taking out only lfcs
 heat_pm1 = as.data.frame(cbind(heat_pm1$HL_lfc, heat_pm1$LL_lfc, heat_pm1$HL_LL_dif_lfc))
 rownames(heat_pm1) = metNames_pm1
 
-# metabolites = pm1$metabolite
-# metabolites = setdiff(metabolites, c("Negative.Control"))
-# rownames(heat_pm1) = metabolites
-# colnames(heat_pm1) = c("LLcontrasts", "HLcontrasts", "HL-LL contrasts")
-# head(heat_pm1)
-#heat_pm1 <- na.omit(heat_pm1)
-#Delete rows with complete NAs
 heat_pm1 <- heat_pm1[rowSums(is.na(heat_pm1)) != ncol(heat_pm1), ]
 colnames(heat_pm1) = c("LL contrasts", "HL contrasts", "HL-LL contrasts")
-
-
-#heat_pm1<- filter(heat_pm1, rowSums(is.na(heat_pm1)) != ncol(heat_pm1))
-#heat_pm1[is.na(heat_pm1)] <- as.double("NA")
-#heat_pm1[is.na(heat_pm1)] <- ""
-#pheatmap(heat_pm1, na_col="white", scale = "none", cluster_cols = FALSE, cluster_rows = TRUE) #  not working
 
 # llcontrast = as.data.frame(lmpm1$lmlfc[which(as.numeric(lmpm1$indices)<=95)])
 # #take out the signifcant columns and 
 # hlcontrast = which(as.numeric(lmpm1$indices)>95 & as.numeric(lmpm1$indices)<=190)
 # hl_ll_diffcontrast = which(as.numeric(lmpm1$indices)>190)
-# 
 # significant_pm1 = as.data.frame(c(llcontrast, hlcontrast, hl_ll_diffcontrast))
 library("superheat")
 superheat(heat_pm1,
@@ -508,27 +422,12 @@ superheat(heat_pm1,
           heat.na.col = "white", heat.col.scheme =  "red")
 
 
-# Now write down the name of genes beside the points...
-# Create a new column "delabel" to de, that will contain the name of genes differentially 
-#expressed (NA in case they are not)
-# 
-# dfpm1$label <- NA
-# dfpm1$label[dfpm1$diffexpressed != "NO"] <- dfpm1$contrasts[dfpm1$diffexpressed != "NO"]
-# 
-# ggplot(data=dfpm1, aes(x=limmaLFC, y=-log10(limmapval), col=diffexpressed)) + 
-#   geom_point() + 
-#   theme_minimal() +
-#   geom_text(data = dfpm1, aes(label = label), check_overlap = TRUE, size = 3, hjust = 0.5)
-
 # LINEAR MODEL FOR PM2 - 
-
 #this our scaled pm1 table with values , light condition and 
 #metabolites stacked in their repective columns and we use it to fit the model now
 
 #before removal of variance
-
 head(spm2) 
-
 #grouping the metabolite and light condition together
 spm2$group <- factor(paste0(spm2$metabolite, spm2$light_condition))
 head(spm2)
@@ -541,13 +440,8 @@ colnames(Xpm2)=gsub("^group", "", colnames(Xpm2))
 #taking out the column names of the Xpm1 matrix for the metabolite names
 cHL= Xpm2[,161] #negative control HL 
 cLL= Xpm2[,162] # negative controlLL
-
-#contpm=makeContrasts(contrasts =c("MaltoseHL-Negative.ControlHL", "MaltoseLL-Negative.ControlLL", "(MaltoseHL-Negative.ControlHL)-(MaltoseLL-Negative.ControlLL)"), levels=Xpm1)
-#head(contpm)
-
 #the following code is to create a character vector of the column names to calculate the
 #differences and differences of the differences using the makeContrasts 
-
 vec <- vector(mode = "character", length = ncol(Xpm2)/2)
 vec2 <- vector(mode = "character", length = ncol(Xpm2)/2)
 for ( i in 1:ncol(Xpm2))
@@ -555,7 +449,6 @@ for ( i in 1:ncol(Xpm2))
   if (i%%2==0)
   {
     vec[i/2] = paste(colnames(Xpm2)[i], "Negative.ControlLL", sep = "-")
-    
   }
   else
   {
@@ -565,7 +458,6 @@ for ( i in 1:ncol(Xpm2))
 #removing "Negative.ControlHL-Negative.ControlHL", "Negative.ControlLL-Negative.ControlLL", 
 #"Negative.ControlHL-Negative.ControlHL-Negative.ControlLL-Negative.ControlLL"
 #so that they do not introduce NA's in pvalue calculation 
-
 #summary function literally fails if i have NAs
 vec = setdiff(vec, c("Negative.ControlLL-Negative.ControlLL"))
 vec2 = setdiff(vec2, c("Negative.ControlHL-Negative.ControlHL"))
@@ -575,28 +467,20 @@ for ( i in 1: length(vec))
 {
   metabolitevec1[i] = paste( c("("), vec[i], c(")"))
 }
-
 metabolitevec2 = vector()
 
 for ( i in 1: length(vec2))
 {
   metabolitevec2[i] = paste( c("("), vec2[i], c(")"))
 }
-
-
-
-
 metabolitevec <- paste(metabolitevec2, metabolitevec1, sep ="-")
 
 #using default lm function
-
 contpm2=makeContrasts(contrasts =c(vec2, vec, metabolitevec), levels=Xpm2)
 head(contpm2)
 #using default lm function
-
 fitpm2 <- lm(values~0+group, data = spm2)
 summary(fitpm2)
-
 # glht already adjust pvalues
 confit=glht(fitpm2, t(contpm2))
 summarypm2= summary(confit, test = adjusted(type = "fdr"))
@@ -608,12 +492,9 @@ lmpm2 <- tibble::rownames_to_column(lmpm2, "contrasts")
 #dfpm1 <- tibble::rownames_to_column(dfpm1, "Numbers") 
 colnames(lmpm2) = c( "contrasts", "lmlfc", "lmpval")
 head(lmpm2)
-# Volcano pl
-
+# Volcano plot
 p <- ggplot(data=lmpm2, aes(x=lmlfc, y=-log10(lmpval))) + geom_point() + theme_minimal()
 p
-
-
 lmpm2$diffexpressed <- "NO"
 # if limmaLFC > 0.6 and pvalue < 0.05, set as "UP"  for up regualtion
 lmpm2$diffexpressed[lmpm1$lmlfc > 0.6 & lmpm1$lmpval < 0.05] <- "UP"
@@ -621,7 +502,6 @@ lmpm2$diffexpressed[lmpm1$lmlfc > 0.6 & lmpm1$lmpval < 0.05] <- "UP"
 lmpm2$diffexpressed[lmpm1$lmlfc < -0.6 & lmpm1$lmpval< 0.05] <- "DOWN"
 p <- ggplot(data=lmpm2, aes(x=lmlfc, y=-log10(lmpval), col=diffexpressed)) + geom_point() + theme_minimal()
 p
-
 
 ### LIMMA IMPLEMENTATION
 #We trasnfrom the data here into limma fromat for 1 gene
@@ -637,7 +517,6 @@ limmaLFC=eb$coefficients
 #pval = eb$p.value
 #Benjamini Hochberg correction 
 limmapval <- p.adjust(eb$p.value,method="fdr")
-
 #making a dataframe of limmaLFC ie. estimate values and limmapval ie. p values for volcano plot
 limmaLFC = t(limmaLFC)
 dfpm2 <- as.data.frame(cbind(limmaLFC, limmapval))
@@ -645,22 +524,8 @@ dfpm2 <- tibble::rownames_to_column(dfpm2, "contrasts")
 #dfpm2 <- tibble::rownames_to_column(dfpm2, "Numbers") 
 colnames(dfpm2) = c("contrasts", "limmaLFC", "limmapval")
 head(dfpm2)
-# Volcano plots indicate the fold change (either positive or negative) in the x axis 
-#and a significance value (such as the p-value or the adjusted p-value, i.e. limmapval) in the y axis
-
-#The ‘limmapval’ columns contains the corrected pvalues; 
-#these must be converted to the negative of their logarithm base 10 before plotting, 
-#i.e -log10(p-value) or -log10(limmapval).
-#Since volacno plots are scatter plots, we can use geom_point() to generate one with ggplot2
-#the higher the position of a point, the more significant its value is (y axis).
-#Points with positive fold change values (to the right) are up-regulated and 
-#points with negative fold change values (to the left) are down-regulated (x axis).
-
-
 p <- ggplot(data=dfpm2, aes(x=limmaLFC, y=-log10(limmapval))) + geom_point() + theme_minimal()
 p
-
-
 dfpm2$diffexpressed <- "NO"
 # if limmaLFC > 0.6 and pvalue < 0.05, set as "UP"  for up regualtion
 dfpm2$diffexpressed[dfpm1$limmaLFC > 0.6 & dfpm2$limmapval < 0.05] <- "UP"
@@ -668,7 +533,6 @@ dfpm2$diffexpressed[dfpm1$limmaLFC > 0.6 & dfpm2$limmapval < 0.05] <- "UP"
 dfpm2$diffexpressed[dfpm2$limmaLFC < -0.6 & dfpm2$limmapval < 0.05] <- "DOWN"
 p <- ggplot(data=dfpm2, aes(x=limmaLFC, y=-log10(limmapval), col=diffexpressed)) + geom_point() + theme_minimal()
 p
-
 #which metabolites are down regulated, upregulated or none ?
 #which genes are down regulated, upregulated or none ?
 downregulated = as.vector(which((dfpm2$diffexpressed=="DOWN")==TRUE))
@@ -682,42 +546,17 @@ for ( i in downregulated)
   j =j+1
 }
 down
-
 upregulated = as.vector(which((dfpm2$diffexpressed=="UP")==TRUE))
 length(upregulated) #1 only one metabolite is upregulated i.e. 266
 dfpm2[226,]
 
-
-# Now write down the name of genes beside the points...
-# Create a new column "delabel" to de, that will contain the name of genes differentially 
-#expressed (NA in case they are not)
-# 
-# dfpm2$label <- NA
-# dfpm2$label[dfpm2$diffexpressed != "NO"] <- dfpm2$contrasts[dfpm2$diffexpressed != "NO"]
-# 
-# ggplot(data=dfpm2, aes(x=limmaLFC, y=-log10(limmapval), col=diffexpressed)) + 
-#   geom_point() + 
-#   theme_minimal() +
-#   geom_text(data = dfpm2, aes(label = label), check_overlap = TRUE, size = 3 , vjust =0.5 ,hjust = 0.5 )
-
-
-#STEP 4: HEATMAPS
+#STEP 4 : HEATMAPS
 #For the results obtained from glht, prepare a heat map of the log fold changes 
 #in the three contrasts (columns are the contrasts and rows are metabolites (n_met*3) cells,
 #do NOT scale the values,
 #only cluster the rows, 
 #only show log fold change that is linked to a significant p-value 
-#set all other LFC values to NA and remove rows(metabolites) that only have NA values). 
-
-# heatmap pm2
-# lfcpm2 =as.data.frame(summarypm2$test$coefficients)
-# heat_pm2 = as.data.frame(cbind(lfcpm2[1:95,], lfcpm2[96:190,], lfcpm2[191:285,]))
-# metabolites = pm2$metabolite
-# metabolites = setdiff(metabolites, c("Negative.Control"))
-# rownames(heat_pm2) = metabolites
-# colnames(heat_pm2) = c("LLcontrasts", "HLcontrasts", "HL-LL contrasts")
-#pheatmap(heat_pm2, cluster_rows = TRUE, cluster_cols = FALSE)
-
+#set all other LFC values to
 lfcpm2 =as.data.frame(cbind(summarypm2$test$coefficients, summarypm2$test$pvalues))
 lfcpm2 <- tibble::rownames_to_column(lfcpm2, "contrasts")
 colnames(lfcpm2) = c("contrasts", "lfc", "pval" )
@@ -730,34 +569,17 @@ for ( i in 1:nrow(lfcpm2))
     lfcpm2$lfc[i] = NA
   }
 }
-
 #taking out LFCs from the second column and arranging them in 3 columns for LL, HL and HL-LL contrast groups
 heat_pm2 = as.data.frame(cbind(lfcpm2[1:95,], lfcpm2[96:190,], lfcpm2[191:285,]))
 colnames(heat_pm2) = c("HLgroups", "HL_lfc", "HLpvalues", "LLgroups", "LL_lfc","LLpvalues" , "HL_LL_dif_groups", "HL_LL_dif_lfc", "HL_LL_dif_pvalues")
-
 #taking out the metabolite names 
 metNames_pm2= gsub("HL.+", "", heat_pm2[, "HLgroups"])
 #taking out only lfcs
 heat_pm2 = as.data.frame(cbind(heat_pm2$HL_lfc, heat_pm2$LL_lfc, heat_pm2$HL_LL_dif_lfc))
 rownames(heat_pm2) = metNames_pm2
-
-
-#heat_pm1 <- na.omit(heat_pm1)
 #Delete rows with complete NAs
 heat_pm2 <- heat_pm2[rowSums(is.na(heat_pm2)) != ncol(heat_pm2), ]
 colnames(heat_pm2) = c("LL contrasts", "HL contrasts", "HL-LL contrasts")
-#heat_pm2 = apply(heat_pm2,2,as.numeric)
-#heat_pm1<- filter(heat_pm1, rowSums(is.na(heat_pm1)) != ncol(heat_pm1))
-#heat_pm1[is.na(heat_pm1)] <- as.double("NA")
-#pheatmap(heat_pm2, na_col="white", cluster_cols = FALSE, cluster_rows = TRUE)
-
-# llcontrast = as.data.frame(lmpm1$lmlfc[which(as.numeric(lmpm1$indices)<=95)])
-# #take out the signifcant columns and 
-# hlcontrast = which(as.numeric(lmpm1$indices)>95 & as.numeric(lmpm1$indices)<=190)
-# hl_ll_diffcontrast = which(as.numeric(lmpm1$indices)>190)
-# 
-# significant_pm1 = as.data.frame(c(llcontrast, hlcontrast, hl_ll_diffcontrast))
-
 library("superheat")
 superheat(heat_pm2,
           # scale the matrix
@@ -768,14 +590,12 @@ superheat(heat_pm2,
           # change color of missing values
           heat.na.col = "white", heat.col.scheme =  "red")
 
-
 #lm implementation after outlier removal
+
 # REPEATING THE ANALYSIS AFTER REMOVAL OF HIGH VARIANCE DATA
 # we will only use glht function and ANOVA for this part
 #since we kicked yout several groups from the pm2 dataset, we have to also kick them our from the contrast matrix
-
 head(spm2) 
-
 #grouping the metabolite and light condition together
 spm2$group <- factor(paste0(spm2$metabolite, spm2$light_condition))
 head(spm2)
@@ -784,7 +604,6 @@ Xpm2<-model.matrix(~0+group, data =spm2)
 ### R base LM IMPLEMENTATION
 #remove group prefix - here is one example on how to get contrast which you can then use to extract inference statistics please write a loop that extracts all other contrasts
 colnames(Xpm2)=gsub("^group", "", colnames(Xpm2))
-
 ###Compare the variances
 #Create table of sample variances
 #calculates the variances of each group in pm1 and pm2 samples are joins them together to form a dataframe
@@ -794,15 +613,12 @@ pm12var=data.frame(pm1var=aggregate(values~group, data=spm1, var), pm2var=aggreg
 pm1vartest=bartlett.test(values~group, data=spm1)
 # p-value = 0.9767, means that the p value is insignificant, we accept the null hypothesis
 #that the variances for the groups in pm1 dataset are equal
-
 #test if sample variances are equal for pm2
 pm2vartest=bartlett.test(values~group, data=spm2)
 #p-value = 2.308e-12, we have to reject the null hypothesis, the variances are not equal
-
 #plot boxplot of sample variances with test results
 #plotting varinces of pm1 sample and pm2 samples as a boxplot
 #each point in the boxplot is a group
-
 limits=boxplot(pm12var[, c("pm1var.values", "pm2var.values")], col ="bisque", names=c("PM1", "PM2"), ylab="Var", ylim=c(0,max(c(pm12var$pm1var.values, pm12var$pm2var.values))*1.2))
 ypos= y=apply(pm12var[, c("pm1var.values", "pm2var.values")], 2, max)
 text( 
@@ -815,9 +631,7 @@ text(
 # Remove the outliers ie. the groups with the high variances one by one until we have non significant variances
 #in our case we will remove all the variances above 4 in the figure
 # then we rerun everything, means we have to now adjust the contrast matrix
-
 library(stringr)
-
 #outliers in the pm2 dataset
 #smallvariances <-which(pm12var$pm2var.values<2.202078) #170 from her and 22 from outliers. total = 192
 outliers <- boxplot(pm12var$pm2var.values, plot=FALSE)$out #taking out the outliers
@@ -825,50 +639,33 @@ idx_outliers <- which(pm12var$pm2var.values %in% outliers) #which ones are the o
 pm2_outliers <- pm12var[idx_outliers,]
 pm2_outliers <- as.data.frame(pm2_outliers[, c(3,4)])
 #pm2_outliers<- tibble::rownames_to_column(pm2_outliers, "met_indices") 
-
 #sorting the data from highest to lowest variance
 pm2_outliers <- pm2_outliers[order(pm2_outliers$pm2var.values, decreasing = TRUE),] #ordering 
 #pm2_outliers<- tibble::rownames_to_column(pm2_outliers, "met_indices") 
 var_mets <- as.character(pm2_outliers$pm2var.group)
 spm2_modified <- spm2
 met_spm2 <- as.character(spm2_modified$group)
-
-# idx= which(grepl(var_mets[1], spm2_modified$group)==TRUE)
-# idx2 <- which(str_detect(met_spm2, var_mets[1])==TRUE)
-# met_spm2[idx2]
-# idx22<- idx2[(length(idx2)-3):length(idx2)]
-# met_spm2[idx22]
-
-#testing
-
 for ( i in 1:length(var_mets))
 {
   idxes <- which(grepl(var_mets[i], spm2_modified$group)==TRUE)
   print(idxes)
   # 1, 8 and 11th entries give 2 groups 
 }
-
-
 var_mets [1]
 idx1 <- which(grepl(var_mets[1], spm2_modified$group)==TRUE)
 spm2_modified[idx1,] # need to excluse the first 3
-
 var_mets [8]
 idx8 <- which(grepl(var_mets[8], spm2_modified$group)==TRUE)
 spm2_modified[idx8,] # need to excluse the last 3
-
 var_mets [11]
 idx11 <- which(grepl(var_mets[11], spm2_modified$group)==TRUE)
 spm2_modified[idx11,]
 #need to exclude the first 3
 
-
 for ( i in 1:length(var_mets))
 {
   barlet <- bartlett.test(values~group, data=spm2_modified)
-  
   pvalue <- barlet$p.value
-  
   if (pvalue <= 0.05)
   {
     if ( i %in% c(1, 11))
@@ -888,9 +685,7 @@ for ( i in 1:length(var_mets))
       # doing the barlett test and taking out the p values
       barlet<- bartlett.test(values~group, data=spm2_modified)
       pvalue <- barlet$p.value
-      
     }
-    
     else if ( i ==8)
     {
       idx= which(grepl(var_mets[8], spm2_modified$group)==TRUE)
@@ -914,41 +709,36 @@ for ( i in 1:length(var_mets))
   {
     break
   }
-  
 }
-
 pm1var=aggregate(values~group, data=spm1, var)
 pm2var=aggregate(values~group, data=spm2_modified, var)
 pm1vartest=bartlett.test(values~group, data=spm1)
 pm1vartest$p.value
 pm2vartest=bartlett.test(values~group, data=spm2_modified)
 pm2vartest$p.value
-
 par(mfrow=c(1,2))
-
-boxplot(pm1var[, c("values")], xlab =paste("p = ",signif(c(pm1vartest$p.value),3)), main = "PM1", col = "bisque", ylim=c(0,max(c(pm1var$values))*1.2))
+boxplot(pm1var[, c("values")], xlab =paste("p = ",signif(c(pm1vartest$p.value),3)), 
+        main = "PM1", col = "bisque", ylim=c(0,max(c(pm1var$values))*1.2))
 # ggplot(pm1var, aes(x = values)) +  # ggplot function
 #   geom_boxplot()+
 #   labs(title="PM1",x=paste("p = ",signif(c(pm1vartest$p.value),3)), y = "Var")+
 #   theme_classic()
 #ypos= y=apply(pm1var[, c("values")], 2, max)
-boxplot(pm2var[, c("values")], xlab =paste("p = ",signif(c(pm2vartest$p.value),3)), main = "PM2", labels = paste("p = ",signif(c(pm2vartest$p.value),3)), col = "bisque", ylim=c(0,max(c(pm1var$values))*1.2))
-
+boxplot(pm2var[, c("values")], xlab =paste("p = ",signif(c(pm2vartest$p.value),3)), 
+        main = "PM2", labels = paste("p = ",signif(c(pm2vartest$p.value),3)), col = 
+        "bisque", ylim=c(0,max(c(pm1var$values))*1.2))
 c = colnames(Xpm2)
 c[161]
 c[162]
 #taking out the column names of the Xpm2 matrix for the metabolite names
 cHL= Xpm2[,161] #negative control HL 
 cLL= Xpm2[,162] # negative controlLL
-
 #to extract the groups that are excluded from spm2 dataset
 setdif<- setdiff(spm2, spm2_modified)
-
 expelled_mets <- setdif$group
 length(expelled_mets)
 #54
 #means 54 entries were deleted from spm2_modified which means 54/3 = 18 groups
-
 '%ni%'<- Negate('%in%')
 vec <- vector(mode = "character", length = ncol(Xpm2)/2)
 vec2 <- vector(mode = "character", length = ncol(Xpm2)/2)
@@ -961,8 +751,6 @@ for ( i in 1:ncol(Xpm2))
     {
       vec[i/2] = paste(colnames(Xpm2)[i], "Negative.ControlLL", sep = "-")
     }
-    
-    
   }
   else
   {
@@ -977,14 +765,11 @@ length(vec)
 vec = vec[vec != ""]
 length(vec)
 length(vec2)
-
 vec2 = vec2[vec2 != ""]
 length(vec2)
-
 # removing so Negative.Control entries so that we dont get NAs which actually stops glht function from running
 vec = setdiff(vec, c("Negative.ControlLL-Negative.ControlLL"))
 vec2 = setdiff(vec2, c("Negative.ControlHL-Negative.ControlHL"))
-
 #adding the brackets 
 metabolitevec1 = vector()
 for ( i in 1: length(vec))
@@ -998,8 +783,6 @@ for ( i in 1: length(vec2))
 {
   metabolitevec2[i] = paste( c("("), vec2[i], c(")"))
 }
-
-
 metabolitevec <- paste(metabolitevec2, metabolitevec1, sep ="-")
 #metabolitevec <- setdiff(metabolitevec, c("Negative.ControlHL-Negative.ControlHL-Negative.ControlLL-Negative.ControlLL"))
 contpm2=makeContrasts(contrasts =c(vec2, vec, metabolitevec), levels=Xpm2)
@@ -1016,11 +799,8 @@ lmpm2<- tibble::rownames_to_column(lmpm2, "contrasts")
 #dfpm1 <- tibble::rownames_to_column(dfpm1, "Numbers") 
 colnames(lmpm2) = c( "contrasts", "lmlfc", "lmpval")
 head(lmpm2)
-
 p <- ggplot(data=lmpm2, aes(x=lmlfc, y=-log10(lmpval))) + geom_point() + theme_minimal()
 p
-
-
 lmpm2$diffexpressed <- "NO"
 # if limmaLFC > 0.6 and pvalue < 0.05, set as "UP"  for up regualtion
 lmpm2$diffexpressed[lmpm2$lmlfc > 0.6 & lmpm2$lmpval< 0.05] <- "UP"
@@ -1028,13 +808,6 @@ lmpm2$diffexpressed[lmpm2$lmlfc > 0.6 & lmpm2$lmpval< 0.05] <- "UP"
 lmpm2$diffexpressed[lmpm2$lmlfc < -0.6 & lmpm2$lmpval < 0.05] <- "DOWN"
 p <- ggplot(data=lmpm2, aes(x=lmlfc, y=-log10(lmpval), col=diffexpressed)) + geom_point() + theme_minimal()
 p
-
-# heatmap pm2
-# lfcpm2 =as.data.frame(summarypm2$test$coefficients)
-# dim(lfcpm2)
-# dim(lfcpm1)
-# 
-
 lfcpm2 =as.data.frame(cbind(summarypm2$test$coefficients, summarypm2$test$pvalues))
 lfcpm2 <- tibble::rownames_to_column(lfcpm2, "contrasts")
 colnames(lfcpm2) = c("contrasts", "lfc", "pval" )
@@ -1048,16 +821,6 @@ for ( i in 1:nrow(lfcpm2))
   }
 }
 dim(lfcpm2) # 260 instead of 285
-
-# heat_pm2 = as.data.frame(cbind(lfcpm2[1:95,2], lfcpm2[96:190,2], lfcpm2[191:285,2]))
-# metabolites = pm2$metabolite
-# metabolites = setdiff(metabolites, c("Negative.Control"))
-# rownames(heat_pm2) = metabolites
-# colnames(heat_pm2) = c("LLcontrasts", "HLcontrasts", "HL-LL contrasts")
-# #heat_pm1 <- na.omit(heat_pm1)
-# #Delete rows with complete NAs
-# heat_pm2 <- heat_pm2[rowSums(is.na(heat_pm2)) != ncol(heat_pm2), ]
-
 #before kicking out the groups we have 285 entries in the groups, and wach contrast column
 # ie. LL, HL and HL-LL contrasts had 95 entries but ow we have 260 entries in the group
 # and the no. of groups in each contrast is not the same 
@@ -1080,54 +843,40 @@ for ( i in 1:nrow(lfcpm2))
   {
     HL_LL_diff = HL_LL_diff+1
   }
-  
 }
-
 LL
 HL
 HL_LL_diff
-
 HLgroups <- lfcpm2[1:HL,]
 LLgroups<-lfcpm2[85:172,]
 HL_LL_diff_groups <- lfcpm2[173:260,]
-
 # lets add four rows at the bottom so that we can bind them together
 x = matrix(data=NA,nrow=4,ncol=3)
 colnames(x) = c("contrasts", "lfc", "pval" )
 HLgroups <- rbind(HLgroups, x)
-
 #lets check if the dimensions of the contrast columns are equal
 dim(HLgroups) == dim(LLgroups) 
 dim(HLgroups)== dim(HL_LL_diff_groups)
-
 heat_pm2 = as.data.frame(cbind(HLgroups, LLgroups, HL_LL_diff_groups))
-
-
-
 #for rownames 
-
 metabolites = pm2$metabolite #consists of all the metabolites
 # but we have expelled some of them 
 length(metabolites)
 dim(heat_pm2) 
 expelled_mets
-
 #looking at the expelled mets we see that all 6 entries ( ie. 3 samples fom HL and 3 from LL) 
 #of b.D.Allose, L.Glucose, Caproic.acid are included in the expelled_mets, so we can expell them altogether 
 #from our metabolite vector´
 #this gives us the 8 meatabolite names that were expelled including NegativeControlLL and NegativeControlHL
-
 metabolites = setdiff(metabolites, c("Negative.Control", "b.D.Allose", "L.Glucose", "Caproic.acid" ))
 #rownames(heat_pm2) = metabolites
 colnames(heat_pm2) = c("HLgroups", "HL_lfc", "HLpvalues", "LLgroups", "LL_lfc","LLpvalues" , "HL_LL_dif_groups", "HL_LL_dif_lfc", "HL_LL_dif_pvalues")
 head(heat_pm2)
-
 # we can also get the metabolite ames after exclusion from the spm2_modified dataframe # i forgot about it 
 met = unique(spm2_modified$metabolite)
 met = setdiff(met, c("Negative.Control"))
 met == metabolites #true for all
 #met = as.data.frame(met)
-
 length(met) # 92, thus there should be 92 entries in the contrast matrix but we have 88
 #now need to compare the metabolite in each row, if they dont match then i set NAs to the positions where they dont
 
@@ -1141,7 +890,6 @@ length(met) # 92, thus there should be 92 entries in the contrast matrix but we 
 #in the corresponding rows if not i need to add NAs to the those rows so that i have like 
 #for example for second row :  NA   NA   NA   a.Keto.Valeric.acidLL-Negative.ControlLL  -4.299579   1.391480e-04    NA NA NA AND SO ON
 # correct metabolite mismatches in rows
-
 d = data.frame() # required for rbind
 HLs = gsub("HL.+", "", heat_pm2[, "HLgroups"]) # extract met
 LLs = gsub("LL.+", "", heat_pm2[, "LLgroups"])
@@ -1158,40 +906,23 @@ for (i in seq_len(length(HLs))) { # for every met in HLs
 
 HLs = as.data.frame(HLs)
 LLs = as.data.frame(LLs)
-
 # create new rows for leftover mets only found in either HLs or LL
 lonelyHLs=cbind(heat_pm2[which(!is.na(HLs)),1:3], matrix(NA, nrow=length(which(!is.na(HLs))), ncol=3), heat_pm2[which(!is.na(HLs)),7:9])
 lonelyLLs = cbind(matrix(NA, nrow=length(which(!is.na(LLs))), ncol=3), heat_pm2[which(!is.na(LLs)),4:6], matrix(NA, nrow=length(which(!is.na(LLs))), ncol=3))
 lonelyHLs = as.data.frame(lonelyHLs)
 lonelyLLs = as.data.frame(lonelyLLs)
-
 d=as.data.frame(rbind(as.matrix(d), as.matrix(lonelyHLs), as.matrix(lonelyLLs)))
-
 # add mets as rownames
 contrast_values=d[,c(2,5,8)]
 rownames=gsub("HL.+", "", d[,1]) # taking out the metabolites names again
 rownames[which(is.na(rownames))]=gsub("LL.+","",d[(nrow(d)-length(which(is.na(rownames)))+1):nrow(d),4])
 rownames(contrast_values)=rownames
-
 # transform into superheat compatible format
 colnames(contrast_values)=colnames(heat_pm1) 
-
 heat_pm2_precursor <- contrast_values[rowSums(is.na(contrast_values)) != ncol(contrast_values), ] # remove rows with only NAs
-
 heat_pm2 = apply(heat_pm2_precursor,2,as.numeric) # convert <NA> into NA
 rownames(heat_pm2)=rownames(heat_pm2_precursor) 
 colnames(heat_pm2) = c("LL contrasts", "HL contrasts", "HL-LL contrasts")# add lost rownames
-
-
-# heat_pm1 and heat_pm2 matrices consist of dataframe of metabolite with significant effect 
-# infirst col: metabliteLL - NegativeControlLL ( means LL and metabolite interaction), 
-# second col:metaboliteHL- NegativeControlHL
-# and  (metaboliteHL- NegativeControlHL)-(metabliteLL - NegativeControlLL)
-
-# IN the last row of the contrast matrix ie. (metaboliteHL- NegativeControlHL)-(metabliteLL - NegativeControlLL) 
-#only the metabolite effect remains , thus the are the metabolites that actually have effect on the gene expression
-#no matter what the light condition is
-
 library("superheat")
 superheat(heat_pm2,
           # scale the matrix
