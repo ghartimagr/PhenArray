@@ -465,19 +465,30 @@ for ( i in 1:nrow(lfcpm1))
 }
 
 #taking out LFCs from the second column and arranging them in 3 columns for LL, HL and HL-LL contrast groups
-heat_pm1 = as.data.frame(cbind(lfcpm1[1:95,2], lfcpm1[96:190,2], lfcpm1[191:285,2]))
-metabolites = pm1$metabolite
-metabolites = setdiff(metabolites, c("Negative.Control"))
-rownames(heat_pm1) = metabolites
-colnames(heat_pm1) = c("LLcontrasts", "HLcontrasts", "HL-LL contrasts")
-head(heat_pm1)
+heat_pm1 = as.data.frame(cbind(lfcpm1[1:95,], lfcpm1[96:190,], lfcpm1[191:285,]))
+colnames(heat_pm1) = c("HLgroups", "HL_lfc", "HLpvalues", "LLgroups", "LL_lfc","LLpvalues" , "HL_LL_dif_groups", "HL_LL_dif_lfc", "HL_LL_dif_pvalues")
+
+#taking out the metabolite names 
+metNames_pm1= gsub("HL.+", "", heat_pm1[, "HLgroups"])
+#taking out only lfcs
+heat_pm1 = as.data.frame(cbind(heat_pm1$HL_lfc, heat_pm1$LL_lfc, heat_pm1$HL_LL_dif_lfc))
+rownames(heat_pm1) = metNames_pm1
+
+# metabolites = pm1$metabolite
+# metabolites = setdiff(metabolites, c("Negative.Control"))
+# rownames(heat_pm1) = metabolites
+# colnames(heat_pm1) = c("LLcontrasts", "HLcontrasts", "HL-LL contrasts")
+# head(heat_pm1)
 #heat_pm1 <- na.omit(heat_pm1)
 #Delete rows with complete NAs
 heat_pm1 <- heat_pm1[rowSums(is.na(heat_pm1)) != ncol(heat_pm1), ]
+colnames(heat_pm1) = c("LL contrasts", "HL contrasts", "HL-LL contrasts")
+
+
 #heat_pm1<- filter(heat_pm1, rowSums(is.na(heat_pm1)) != ncol(heat_pm1))
 #heat_pm1[is.na(heat_pm1)] <- as.double("NA")
 #heat_pm1[is.na(heat_pm1)] <- ""
-pheatmap(heat_pm1, na_col="white", scale = "none", cluster_cols = FALSE, cluster_rows = TRUE) #  not working
+#pheatmap(heat_pm1, na_col="white", scale = "none", cluster_cols = FALSE, cluster_rows = TRUE) #  not working
 
 # llcontrast = as.data.frame(lmpm1$lmlfc[which(as.numeric(lmpm1$indices)<=95)])
 # #take out the signifcant columns and 
@@ -720,14 +731,22 @@ for ( i in 1:nrow(lfcpm2))
   }
 }
 
-heat_pm2 = as.data.frame(cbind(lfcpm2[1:95,2], lfcpm2[96:190,2], lfcpm2[191:285,2]))
-metabolites = pm2$metabolite
-metabolites = setdiff(metabolites, c("Negative.Control"))
-rownames(heat_pm2) = metabolites
-colnames(heat_pm2) = c("LLcontrasts", "HLcontrasts", "HL-LL contrasts")
+#taking out LFCs from the second column and arranging them in 3 columns for LL, HL and HL-LL contrast groups
+heat_pm2 = as.data.frame(cbind(lfcpm2[1:95,], lfcpm2[96:190,], lfcpm2[191:285,]))
+colnames(heat_pm2) = c("HLgroups", "HL_lfc", "HLpvalues", "LLgroups", "LL_lfc","LLpvalues" , "HL_LL_dif_groups", "HL_LL_dif_lfc", "HL_LL_dif_pvalues")
+
+#taking out the metabolite names 
+metNames_pm2= gsub("HL.+", "", heat_pm2[, "HLgroups"])
+#taking out only lfcs
+heat_pm2 = as.data.frame(cbind(heat_pm2$HL_lfc, heat_pm2$LL_lfc, heat_pm2$HL_LL_dif_lfc))
+rownames(heat_pm2) = metNames_pm2
+
+
 #heat_pm1 <- na.omit(heat_pm1)
 #Delete rows with complete NAs
 heat_pm2 <- heat_pm2[rowSums(is.na(heat_pm2)) != ncol(heat_pm2), ]
+colnames(heat_pm2) = c("LL contrasts", "HL contrasts", "HL-LL contrasts")
+#heat_pm2 = apply(heat_pm2,2,as.numeric)
 #heat_pm1<- filter(heat_pm1, rowSums(is.na(heat_pm1)) != ncol(heat_pm1))
 #heat_pm1[is.na(heat_pm1)] <- as.double("NA")
 #pheatmap(heat_pm2, na_col="white", cluster_cols = FALSE, cluster_rows = TRUE)
@@ -1107,7 +1126,7 @@ head(heat_pm2)
 met = unique(spm2_modified$metabolite)
 met = setdiff(met, c("Negative.Control"))
 met == metabolites #true for all
-met = as.data.frame(met)
+#met = as.data.frame(met)
 
 length(met) # 92, thus there should be 92 entries in the contrast matrix but we have 88
 #now need to compare the metabolite in each row, if they dont match then i set NAs to the positions where they dont
@@ -1121,21 +1140,47 @@ length(met) # 92, thus there should be 92 entries in the contrast matrix but we 
 #from "LLgroups" column and see if "HLgroups" and "HL_LL_Diff_groups"  have this metabolite 
 #in the corresponding rows if not i need to add NAs to the those rows so that i have like 
 #for example for second row :  NA   NA   NA   a.Keto.Valeric.acidLL-Negative.ControlLL  -4.299579   1.391480e-04    NA NA NA AND SO ON
-for (i in 1: nrow(heat_pm2))
-{
-  print ("implementation here")
+# correct metabolite mismatches in rows
+
+d = data.frame() # required for rbind
+HLs = gsub("HL.+", "", heat_pm2[, "HLgroups"]) # extract met
+LLs = gsub("LL.+", "", heat_pm2[, "LLgroups"])
+
+for (i in seq_len(length(HLs))) { # for every met in HLs
+  idx = which(LLs==HLs[i]) # search for same met in LLs
+  
+  if(!identical(idx,integer(0))){ # false if metabolite in HL contrast  is not in LL contrast
+    d=rbind(d, c(heat_pm2[i,1:3], heat_pm2[idx, 4:6], heat_pm2[i,7:9]))
+    HLs[i]=NA # mask met if found
+    LLs[idx]=NA
+  }
 }
 
-#rownames(heat_pm2) ==met
+HLs = as.data.frame(HLs)
+LLs = as.data.frame(LLs)
 
-#edit 1108 to 1113
+# create new rows for leftover mets only found in either HLs or LL
+lonelyHLs=cbind(heat_pm2[which(!is.na(HLs)),1:3], matrix(NA, nrow=length(which(!is.na(HLs))), ncol=3), heat_pm2[which(!is.na(HLs)),7:9])
+lonelyLLs = cbind(matrix(NA, nrow=length(which(!is.na(LLs))), ncol=3), heat_pm2[which(!is.na(LLs)),4:6], matrix(NA, nrow=length(which(!is.na(LLs))), ncol=3))
+lonelyHLs = as.data.frame(lonelyHLs)
+lonelyLLs = as.data.frame(lonelyLLs)
 
-#rownames(heat_pm2) = metabolites
-#colnames(heat_pm2) = c("LLcontrasts", "HLcontrasts", "HL-LL contrasts")
+d=as.data.frame(rbind(as.matrix(d), as.matrix(lonelyHLs), as.matrix(lonelyLLs)))
 
-#heat_pm1 <- na.omit(heat_pm1)
-#Delete rows with complete NAs
-#heat_pm2 <- heat_pm2[rowSums(is.na(heat_pm2)) != ncol(heat_pm2), ]
+# add mets as rownames
+contrast_values=d[,c(2,5,8)]
+rownames=gsub("HL.+", "", d[,1]) # taking out the metabolites names again
+rownames[which(is.na(rownames))]=gsub("LL.+","",d[(nrow(d)-length(which(is.na(rownames)))+1):nrow(d),4])
+rownames(contrast_values)=rownames
+
+# transform into superheat compatible format
+colnames(contrast_values)=colnames(heat_pm1) 
+
+heat_pm2_precursor <- contrast_values[rowSums(is.na(contrast_values)) != ncol(contrast_values), ] # remove rows with only NAs
+
+heat_pm2 = apply(heat_pm2_precursor,2,as.numeric) # convert <NA> into NA
+rownames(heat_pm2)=rownames(heat_pm2_precursor) 
+colnames(heat_pm2) = c("LL contrasts", "HL contrasts", "HL-LL contrasts")# add lost rownames
 
 
 # heat_pm1 and heat_pm2 matrices consist of dataframe of metabolite with significant effect 
@@ -1152,7 +1197,7 @@ superheat(heat_pm2,
           # scale the matrix
           # change color of missing values
           heat.na.col = "white", heat.pal = c("blue", "red"))
-Ssuperheat(heat_pm2,
+superheat(heat_pm2,
           # scale the matrix
           # change color of missing values
           heat.na.col = "white", heat.col.scheme =  "red")
