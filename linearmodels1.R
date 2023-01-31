@@ -381,14 +381,14 @@ colnames(lmpm1) = c( "contrasts", "lmlfc", "lmpval")
 head(lmpm1)
 save(lmpm1, file = "lmpm1.RData")
 # Volcano plot
-p <- ggplot(data=lmpm1, aes(x=lmlfc, y=-log10(lmpval))) + geom_point() + theme_minimal()
+p <- ggplot(data=lmpm1, aes(x=lmlfc, y=-log2(lmpval))) + geom_point() + theme_minimal()
 p
 lmpm1$diffexpressed <- "NO"
 # if limmaLFC > 0.6 and pvalue < 0.05, set as "UP"  for up regualtion
 lmpm1$diffexpressed[lmpm1$lmlfc > 0.6 & lmpm1$lmpval < 0.05] <- "UP"
 # if limmaLFC < -0.6 and pvalue < 0.05, set as "DOWN" for down regulation
 lmpm1$diffexpressed[lmpm1$lmlfc < -0.6 & lmpm1$lmpval< 0.05] <- "DOWN"
-p <- ggplot(data=lmpm1, aes(x=lmlfc, y=-log10(lmpval), col=diffexpressed)) + geom_point() + theme_minimal()
+p <- ggplot(data=lmpm1, aes(x=lmlfc, y=-log2(lmpval), col=diffexpressed)) + geom_point() + theme_minimal()
 p
 
 # Now write down the name of genes beside the points...
@@ -465,24 +465,24 @@ p
 downregulated = as.vector(which((dfpm1$diffexpressed=="DOWN")==TRUE))
 #length(downregulated) : 52 dowwnregulated 
 
-down = data.frame(matrix(NA, nrow =52, ncol = 4))
-j = 1
-for ( i in downregulated)
-{
-  down[j,] = dfpm1[i,]
-  j =j+1
-}
-down
-upregulated = as.vector(which((dfpm1$diffexpressed=="UP")==TRUE))
-length(upregulated)
-up = data.frame(matrix(NA, nrow =16, ncol = 4))
-j = 1
-for ( i in upregulated)
-{
-  up[j,] = dfpm1[i,]
-  j =j+1
-}
-up
+# down = data.frame(matrix(NA, nrow =52, ncol = 4))
+# j = 1
+# for ( i in downregulated)
+# {
+#   down[j,] = dfpm1[i,]
+#   j =j+1
+# }
+# down
+# upregulated = as.vector(which((dfpm1$diffexpressed=="UP")==TRUE))
+# length(upregulated)
+# up = data.frame(matrix(NA, nrow =16, ncol = 4))
+# j = 1
+# for ( i in upregulated)
+# {
+#   up[j,] = dfpm1[i,]
+#   j =j+1
+# }
+# up
 #binding coefficients and p values 
 lfcpm1 =as.data.frame(cbind(summarypm1$test$coefficients, summarypm1$test$pvalues))
 lfcpm1 <- tibble::rownames_to_column(lfcpm1, "contrasts")
@@ -506,7 +506,7 @@ colnames(heat_pm1) = c("HLgroups", "HL_lfc", "HLpvalues", "LLgroups", "LL_lfc","
 #taking out the metabolite names 
 metNames_pm1= gsub("HL.+", "", heat_pm1[, "HLgroups"])
 #taking out only lfcs
-heat_pm1 = as.data.frame(cbind(heat_pm1$HL_lfc, heat_pm1$LL_lfc, heat_pm1$HL_LL_dif_lfc)) # only lfcs
+heat_pm1 = as.data.frame(cbind(heat_pm1$LL_lfc, heat_pm1$HL_lfc, heat_pm1$HL_LL_dif_lfc)) # only lfcs
 rownames(heat_pm1) = metNames_pm1
 
 heat_pm1 <- heat_pm1[rowSums(is.na(heat_pm1)) != ncol(heat_pm1), ]
@@ -543,12 +543,9 @@ pm1compounds = read.xlsx("Data/PM01_PM2A_compound list.xlsx", sheetName = "PM01"
 pm1compounds$X3 = conv_metnames(pm1compounds$X3)
 pm1compounds$X4 = conv_metnames(pm1compounds$X4)
 head (lmpm1)
-#taking out the down and upregulated metabolites
-#downreg <- lmpm1[lmpm1$diffexpressed=="DOWN"]
 #which genes are down regulated, upregulated or none ?
 downregulated = as.vector(which((lmpm1$diffexpressed=="DOWN" & lmpm1$lmpval <0.05)==TRUE))
 length(downregulated) #: 52 dowwnregulated 
-
 down = data.frame(matrix(NA, nrow =52, ncol = 4))
 j = 1
 for ( i in downregulated)
@@ -558,78 +555,12 @@ for ( i in downregulated)
 }
 head(down)
 dim(down) #51
-# metabolites which casue downregulation in lowlight
-idxLL<-which(grepl("LL-Negative.ControlLL", down$X1 )==TRUE)
-length(idxLL) #40
-downLL <- down$X1[idxLL]
-downLLmets <- gsub("LL-Negative.Control.+", "", downLL)
 
-##metabolites causeing downregulation in high light
-idxHL <- which(grepl("HL-Negative.ControlHL", down$X1 )==TRUE)
-length(idxHL) #12
-downHL <- down$X1[idxHL]
-downHLmets <- gsub("HL-Negative.Control.+", "", downHL)
-
-#dowregulating metabolites in total
-downMets = gsub("LL-Negative.Control.+", "", down$X1)
-downMets = gsub("HL-.+", "", downMets)
-downMets 
-#c source for the downregulating metabolites in general
-CsourceDown = vector(length = length(downMets), mode = "character")
-
-for ( i in 1:length(downMets))
-{
-  if (downMets[i] %in% pm1compounds$X3)
-  {
-    idx = which(pm1compounds$X3==downMets[i]) # taking out the index of the metabolite pm1compounds
-    CsourceDown[i] = pm1compounds$X4[idx]
-    i =i+1
-  }
-}
-CsourceDown
-CsourceDown <- gsub("C.Source+\\.\\.", "", CsourceDown)
-CsourceDown
-df_down <- as.data.frame(cbind(downMets, CsourceDown))
-
-
-#C source for separate dowLLMets and downHLmets ie. downregulating metabolites in LL and HL
-CsourceDownLL= vector(length = length(downLLmets), mode = "character")
-
-for ( i in 1:length(downLLmets))
-{
-  if (downLLmets[i] %in% pm1compounds$X3)
-  {
-    idx = which(pm1compounds$X3==downLLmets[i]) # taking out the index of the metabolite pm1compounds
-    CsourceDownLL[i] = pm1compounds$X4[idx]
-    i =i+1
-  }
-}
-CsourceDownLL
-
-CsourceDownLL <- gsub("C.Source+\\.\\.", "", CsourceDownLL)
-CsourceDownLL
-df_downLL <- as.data.frame(cbind(downLLmets, CsourceDownLL))
-df_downLL
-
-
-CsourceDownHL= vector(length = length(downHLmets), mode = "character")
-
-for ( i in 1:length(downHLmets))
-{
-  if (downHLmets[i] %in% pm1compounds$X3)
-  {
-    idx = which(pm1compounds$X3==downHLmets[i]) # taking out the index of the metabolite pm1compounds
-    CsourceDownHL[i] = pm1compounds$X4[idx]
-    i =i+1
-  }
-}
-CsourceDownHL
-
-CsourceDownHL <- gsub("C.Source+\\.\\.", "", CsourceDownHL)
-CsourceDownHL
-df_downHL <- as.data.frame(cbind(downHLmets, CsourceDownHL))
-df_downHL
-
+downMets <-downdiff(down)
+# CsourceDownLL<- CsourceExtract(downMets$LLmets)
+# CsourceDownHL <- CsourceExtract(downMets$HLmets)
+df_downLL= CsourceExtract(downLLmets)
+df_downHL= CsourceExtract(downHLmets)
 
 #Upregulation
 upregulated = as.vector(which((lmpm1$diffexpressed=="UP" & lmpm1$lmpval <0.05)==TRUE))
@@ -642,33 +573,16 @@ for ( i in upregulated)
   j =j+1
 }
 up
-
 # up consists of ohly those metabolites in the third colum of the heat map ie. the interaction component
 upMets <- gsub("HL(-.+).+", "", up$X1)
 upMets <- gsub(".+ ", "", upMets)
 #upMets <- gsub('.+([a-z]+)HL.+', '(\\1)', up$X1)
 CsourceUp = vector(length = length(upMets), mode = "character")
-
-
-for ( i in 1:length(upMets))
-{
-  if (upMets[i] %in% pm1compounds$X3)
-  {
-    idx = which(pm1compounds$X3==upMets[i]) # taking out the index of the metabolite pm1compounds
-    CsourceUp[i] = pm1compounds$X4[idx]
-    i =i+1
-  }
-}
-#CsourceUp
-CsourceUp <- gsub("C.Source+\\.\\.", "", CsourceUp)
-CsourceUp
-df_up <- as.data.frame(cbind(upMets, CsourceUp))
-df_up
+df_up <- CsourceExtract(upMets)
 
 
 Noreg = as.vector(which((lmpm1$diffexpressed=="NO")==TRUE))
 length(Noreg)
-
 No= data.frame(matrix(NA, nrow =217, ncol = 4))
 j = 1
 for ( i in Noreg)
@@ -679,327 +593,49 @@ for ( i in Noreg)
 No = as.data.frame(No)
 head(No)
 dim(No) #217
-
-#metablotites with LL, HL and HL-LL separation
-# metabolites which casue downregulation in lowlight
-idxNoLL<-which(grepl("LL-Negative.ControlLL$", No$X1 )==TRUE)
-length(idxNoLL) #55
-NoLL <- No$X1[idxNoLL]
-NoLLmets <- gsub("LL-Negative.Control.+", "", NoLL)
-NoLLmets
-##metabolites causeing downregulation in high light
-idxNoHL <- which(grepl("HL-Negative.ControlHL$", No$X1 )==TRUE)
-length(idxNoHL) # 83
-NoHL <- No$X1[idxNoHL]
-NoHLmets <- gsub("HL-Negative.Control.+", "", NoHL)
-NoHLmets
-
-idxno <-  which(grepl("^\\(", No$X1 )==TRUE)
-length(idxno) #79 # 79+83+55 = 217
-Nomets <<- No$X1[idxno]
-Nomets <- gsub("HL-.+", "", Nomets)
-Nomets <- gsub(".+ ", "", Nomets)
-Nomets
+NoMets <- Nodiff(No)
+df_noLL= CsourceExtract(NoMets$LLmets)
+df_noHL= CsourceExtract(NoMets$HLmets)
+df_noHL_LL = CsourceExtract(NoMets$HL_LLmets)
 
 
-#without the separation 
-#the total metabolites that do not affect gene expression
-NoregMets= gsub("LL-Negative.Control.+", "", No$X1)
-NoregMets= gsub("HL-.+", "", NoregMets)
-NoregMets <- gsub(".+ ", "", NoregMets)
-NoregMets
-length(NoregMets)
-CsourceNo= vector(length = length(NoregMets), mode = "character")
-for ( i in 1:length(NoregMets))
-{
-  if (NoregMets[i] %in% pm1compounds$X3)
-  {
-    idx = which(pm1compounds$X3==NoregMets[i]) # taking out the index of the metabolite pm1compounds
-    CsourceNo[i] = pm1compounds$X4[idx]
-    i =i+1
-  }
-}
-#CsourceUp
-CsourceNo <- gsub("C.Source+\\.\\.", "", CsourceNo)
-CsourceNo
-df_No <- as.data.frame(cbind(NoregMets, CsourceNo))
-
-
-
-#with separation
-CsourceNoLL= vector(length = length(NoLLmets), mode = "character")
-
-for ( i in 1:length(NoLLmets))
-{
-  if (NoLLmets[i] %in% pm1compounds$X3)
-  {
-    idx = which(pm1compounds$X3==NoLLmets[i]) # taking out the index of the metabolite pm1compounds
-    CsourceNoLL[i] = pm1compounds$X4[idx]
-    i =i+1
-  }
-}
-CsourceNoLL
-
-CsourceNoLL <- gsub("C.Source+\\.\\.", "", CsourceNoLL)
-CsourceNoLL
-df_noLL <- as.data.frame(cbind(NoLLmets, CsourceNoLL))
-df_noLL
-
-
-CsourceNoHL= vector(length = length(NoHLmets), mode = "character")
-
-for ( i in 1:length(NoHLmets))
-{
-  if (NoHLmets[i] %in% pm1compounds$X3)
-  {
-    idx = which(pm1compounds$X3==NoHLmets[i]) # taking out the index of the metabolite pm1compounds
-    CsourceNoHL[i] = pm1compounds$X4[idx]
-    i =i+1
-  }
-}
-CsourceNoHL
-
-CsourceNoHL <- gsub("C.Source+\\.\\.", "", CsourceNoHL)
-CsourceNoHL
-df_noHL <- as.data.frame(cbind(NoHLmets, CsourceNoHL))
-df_noHL
-
-
-
-CsourceNo= vector(length = length(Nomets), mode = "character")
-
-for ( i in 1:length(Nomets))
-{
-  if (Nomets[i] %in% pm1compounds$X3)
-  {
-    idx = which(pm1compounds$X3==Nomets[i]) # taking out the index of the metabolite pm1compounds
-    CsourceNo[i] = pm1compounds$X4[idx]
-    i =i+1
-  }
-}
-CsourceNo
-
-CsourceNo <- gsub("C.Source+\\.\\.", "", CsourceNo)
-CsourceNo
-df_no <- as.data.frame(cbind(Nomets, CsourceNo))
-df_no
-
-
-#to see how many metabolites fall under different classes
-tableno <- as.data.frame(table(df_No$CsourceNo)) # the normal table without separaation
-tableno
 #no regulation for seaprated ones
-tableNO <- as.data.frame(table(df_no$CsourceNo))
-tableNO
-tablenoLL <-  as.data.frame(table(df_noLL$CsourceNoLL))
-tablenoLL
-tablenoHL <- as.data.frame(table(df_noHL$CsourceNoHL))
-tablenoHL
-
+tableHL_LL <- as.data.frame(table(df_noHL_LL$Csource))
+tablenoLL <-  as.data.frame(table(df_noLL$Csource))
+tablenoHL <- as.data.frame(table(df_noHL$Csource))
 #ureg for separated ones
-tableup <- as.data.frame(table(df_up$CsourceUp))
-tableup
-
-#down reg for not separated 
-tabledown <- as.data.frame(table(df_down$CsourceDown))
-tabledown
-
+tableup <- as.data.frame(table(df_up$Csource))
 #downreg for the separated ones
-tabledownLL <- as.data.frame(table(df_downLL$CsourceDownLL))
-tabledownLL
-
-tabledowHL <- as.data.frame(table(df_downHL$CsourceDownHL))
-tabledowHL
+tabledownLL <- as.data.frame(table(df_downLL$Csource))
+tabledownHL <- as.data.frame(table(df_downHL$Csource))
 #creating contingecy matrix
 contingency_mat <- matrix(NA, nrow=8, ncol= 6)
-colnames(contingency_mat) = c("Upregulation", "DownregulationLL", "DownregulationHL" 
-                               , "NoRegulationLL", "NoRegulationHL", "Noregulation")
+colnames(contingency_mat) = c( "DownregulationLL", "DownregulationHL", "UpregulationHL_LL",
+                               "NoRegulationLL", "NoRegulationHL", "NoregulationHL_LL")
 rownames (contingency_mat) = c("Alcohol", "Amide", "Amine", "Amino acid", 
                                 "Carbohydrate", "Carboxylic acid", "Ester", "Fatty acid")
-contingency_mat[,1] = c(0,0, 0, 1, 7, 8, 0, 0)
-contingency_mat[,2] =  c(0, tabledownLL$Freq)
-contingency_mat[,3] =  c(0, 1,1,0, 4,3,0,3)
+contingency_mat[,1] = c(0, tabledownLL$Freq)
+contingency_mat[,2] =  c(0, 1,1,0, 4,3,0,3)
+contingency_mat[,3] =  c(0,0, 0, 1, 7, 8, 0, 0)
 contingency_mat[,4] = c(2, 0,0,12,25,16,0,0)
 contingency_mat[,5] = c(2,0,1,16,34,29,1,0)
-contingency_mat[,6] =tableNO$Freq
+contingency_mat[,6] =tableHL_LL$Freq
 
 contingency_mat
-
-phyperfunction <- function(contingency_mat, str = "Upregulation")
-{
-  probabilitiesUp= list()
-  columns <- colnames(contingency_mat)
-  q = list()
-  
-  for (class in row.names(contingency_mat))
-    {
-    #goes from 0 to total no. of upregulation in that class
-    q = c(0:contingency_mat[class, str])
-    p = stats::phyper(
-      q = q,
-      m = sum(contingency_mat[class, columns]),
-      n = sum(contingency_mat[which(row.names(contingency_mat) != class), columns]),
-      k = sum(contingency_mat[, str])
-    )
-    probs = data.frame(str= q,
-                       "pvalues" = p)
-    #print (probs)
-    probabilitiesUp[[class]] = probs
-  }
-  return(probabilitiesUp)
-}
-
-hyperup <- phyperfunction(contingency_mat, "Upregulation")
+hyperup <- phyperfunction(contingency_mat, "UpregulationHL_LL")
 hyperdownLL <- phyperfunction(contingency_mat, "DownregulationLL")
 hyperdownHL <- phyperfunction(contingency_mat, "DownregulationHL")
 hypernoLL <- phyperfunction(contingency_mat, "NoRegulationLL")
 hypernoHL <-  phyperfunction(contingency_mat, "NoRegulationHL")
-hyperno <- phyperfunction(contingency_mat, "Noregulation")
-library(ggpubr)
+hyperno <- phyperfunction(contingency_mat, "NoregulationHL_LL")
 
-plotfunction <- function(probabilities)
-{
-  plotlist = list()
-  for ( i in 1:8)
-  {
-    data <- as.data.frame(probabilities[[i]][c(1,2)])
-    data <- data.frame( x = data[,1], y = data[,2])
-    g = ggplot(data, aes(x=factor(x), y=y)) +
-      theme(axis.text=element_text(size=14),
-            axis.title=element_text(size=18,face="bold"),
-            axis.title.x=element_text(margin=margin(20,0,0,0)),
-            axis.title.y=element_text(margin=margin(0,20,0,0))
-      ) +
-      geom_bar(stat="identity", fill=ifelse(data$x < 12,
-                                            rgb(52, 73, 94, maxColorValue=255),
-                                            rgb(231, 76, 60, maxColorValue=255)),
-               colour="black") + labs(x = "No. of differential Expression", y = "p-values")
-    plotlist[[i]] = g
-    i = i+1
-    
-  }
-  figure <- ggarrange(plotlist[[1]], plotlist[[2]], plotlist[[3]], plotlist[[4]], plotlist[[5]], plotlist[[6]], plotlist[[7]], plotlist[[8]]
-                      , labels = c("Alcohol", "Amide", "Amine", "Amino acid", "Carbohydrate", "Carboxylic acid", "Ester", "Fatty acid"), ncol = 2, nrow = 4)
-  figure
-  
-  return(figure)
-  
-}
+library(ggpubr)
 
 plotfunction(hyperup)
 plotfunction(hyperdownHL)
 plotfunction(hyperdownLL)
 
-
-
-
-#OR
-
-#including no regulation
-contingency_mat1 <- matrix(NA, nrow=8, ncol= 3)
-colnames(contingency_mat1) = c("Upregulation", "Downregulation", "NoRegulation")
-rownames (contingency_mat1) = c("Alcohol", "Amide", "Amine", "Amino acid", "Carbohydrate", "Carboxylic acid", "Ester", "Fatty acid")
-contingency_mat1[,3] = tableno$Freq
-contingency_mat1[,2] =  c(0, tabledown$Freq)
-contingency_mat1[,1] = c(0,0, 0, 1, 7, 8, 0, 0) # the entry from table down
-contingency_mat1
-probabilitiesUp1 = list()
-q = list()
-for (class in row.names(contingency_mat1)){
-  #goes from 0 to total no. of upregulation in that class
-  q = c(0:contingency_mat1[class, "Upregulation"]) 
-  p = phyper(
-    q = q,
-    m = sum(contingency_mat1[class, c("Upregulation", "Downregulation", "NoRegulation")]), 
-    n = sum(contingency_mat1[which(row.names(contingency_mat1) != class),
-                             c("Upregulation", "Downregulation", "NoRegulation")]),
-    k = sum(contingency_mat1[, "Upregulation"])
-  )
-  probs = data.frame("number of upregulations" = q,
-                     "probability" = p)
-  #print (probs)
-  probabilitiesUp1[[class]] = probs
-}
-probabilitiesUp1
-
-
-plotlist = list()
-for ( i in 1:8)
-{
-  data <- as.data.frame(probabilitiesUp1[[i]][c(1,2)])
-  data <- data.frame( x = data[,1], y = data[,2])
-  g = ggplot(data, aes(x=factor(x), y=y)) +
-    theme(axis.text=element_text(size=14),
-          axis.title=element_text(size=18,face="bold"),
-          axis.title.x=element_text(margin=margin(20,0,0,0)),
-          axis.title.y=element_text(margin=margin(0,20,0,0))
-    ) +
-    geom_bar(stat="identity", fill=ifelse(data$x < 12,
-                                          rgb(52, 73, 94, maxColorValue=255),
-                                          rgb(231, 76, 60, maxColorValue=255)),
-             colour="black") + labs(x = "No. of upregulation", y = "p-values")
-  plotlist[[i]] = g
-  i = i+1
-  
-}
-library(ggpubr)
-figure <- ggarrange(plotlist[[1]], plotlist[[2]], plotlist[[3]], plotlist[[4]], plotlist[[5]], plotlist[[6]], plotlist[[7]], plotlist[[8]]
-                    , labels = c("Alcohol", "Amide", "Amine", "Amino acid", "Carbohydrate", "Carboxylic acid", "Ester", "Fatty acid"), ncol = 2, nrow = 4)
-figure
-
-probabilitiesDown1 = list()
-for (class in row.names(contingency_mat1)){
-  #goes from 0 to total no. of upregulation in that class
-  q = c(0:contingency_mat1[class, "Downregulation"]) 
-  p = phyper(
-    q = q,
-    
-    m = sum(contingency_mat1[class, c("Upregulation", "Downregulation", "NoRegulation")]), 
-    n = sum(contingency_mat1[which(row.names(contingency_mat1) != class),
-                             c("Upregulation", "Downregulation", "NoRegulation")]),
-    
-    k = sum(contingency_mat1[, "Downregulation"])
-    #sum of uppregulation column
-    
-  )
-  probs = data.frame("number of Downregulation" = q,
-                     "p-value" = p)
-  #print (probs)
-  probabilitiesDown1[[class]] = probs
-}
-probabilitiesDown1
-
-#example
-#data <- data.frame( x = probabilitiesDown$Carbohydrate[,1], y = probabilitiesDown$Carbohydrate[,2] )
-
-plotlist = list()
-for ( i in 1:8)
-{
-  data <- as.data.frame(probabilitiesDown1[[i]][c(1,2)])
-  data <- data.frame( x = data[,1], y = data[,2])
-  g = ggplot(data, aes(x=factor(x), y=y)) +
-    theme(axis.text=element_text(size=14),
-          axis.title=element_text(size=18,face="bold"),
-          axis.title.x=element_text(margin=margin(20,0,0,0)),
-          axis.title.y=element_text(margin=margin(0,20,0,0))
-    ) +
-    geom_bar(stat="identity", fill=ifelse(data$x < 12,
-                                          rgb(52, 73, 94, maxColorValue=255),
-                                          rgb(231, 76, 60, maxColorValue=255)),
-             colour="black") + labs(x = "No. of Downrregulation", y = "P-value")
-  plotlist[[i]] = g
-  i = i+1
-  
-}
-library(ggpubr)
-figure <- ggarrange(plotlist[[1]], plotlist[[2]], plotlist[[3]], plotlist[[4]], plotlist[[5]], plotlist[[6]], plotlist[[7]], plotlist[[8]],
-                    labels = c("Alcohol","Amide", "Amine", "Amino acid", "Carbohydrate", "Carboxylic acid", "Ester", "Fatty acid"), ncol = 2, nrow = 4)
-figure
-# plotfunction(hypernoHL)
-# plotfunction(hypernoLL)
-# plotfunction(hyperno)
-
-
+#check contigencyMat.R for the plots without no_regulation
 #q : vector of quantiles representing the number of white balls drawn without 
 #replacement from a set which contains both black and white balls.
 #m: the number of white balls in the set
@@ -1143,6 +779,8 @@ p
 dfpm2$diffexpressed <- "NO"
 # if limmaLFC > 0.6 and pvalue < 0.05, set as "UP"  for up regualtion
 dfpm2$diffexpressed[dfpm1$limmaLFC > 0.6 & dfpm2$limmapval < 0.05] <- "UP"
+
+
 # if limmaLFC < -0.6 and pvalue < 0.05, set as "DOWN" for down regulation
 dfpm2$diffexpressed[dfpm2$limmaLFC < -0.6 & dfpm2$limmapval < 0.05] <- "DOWN"
 
@@ -1194,11 +832,11 @@ colnames(heat_pm2) = c("HLgroups", "HL_lfc", "HLpvalues", "LLgroups", "LL_lfc","
 #taking out the metabolite names 
 metNames_pm2= gsub("HL.+", "", heat_pm2[, "HLgroups"])
 #taking out only lfcs
-heat_pm2 = as.data.frame(cbind(heat_pm2$HL_lfc, heat_pm2$LL_lfc, heat_pm2$HL_LL_dif_lfc))
+heat_pm2 = as.data.frame(cbind(heat_pm2$LL_lfc, heat_pm2$HL_lfc, heat_pm2$HL_LL_dif_lfc))
 rownames(heat_pm2) = metNames_pm2
 #Delete rows with complete NAs
 heat_pm2 <- heat_pm2[rowSums(is.na(heat_pm2)) != ncol(heat_pm2), ]
-colnames(heat_pm2) = c("LL contrasts", "HL contrasts", "HL-LL contrasts")
+colnames(heat_pm2) = c("LL contrasts","HL contrasts", "HL-LL contrasts")
 
 
 # saving data for volcano plots and heatmaps for pm2
@@ -1355,13 +993,13 @@ boxplot(pm1var[, c("values")], xlab =paste("p = ",signif(c(pm1vartest$p.value),3
 #ypos= y=apply(pm1var[, c("values")], 2, max)
 boxplot(pm2var[, c("values")], xlab =paste("p = ",signif(c(pm2vartest$p.value),3)), 
         main = "PM2", labels = paste("p = ",signif(c(pm2vartest$p.value),3)), col = 
-        "bisque", ylim=c(0,max(c(pm1var$values))*1.2))
+          "bisque", ylim=c(0,max(c(pm1var$values))*1.2))
 
 
 limits=boxplot(pm2var[, c("values")], col ="bisque", main = paste("p = ",signif(c(pm2vartest$p.value),3),sep=""), names=c("PM2"), ylab="Var", xlab = "Figure 15: pm2 variances after outlier removal", ylim=c(0,max(c(pm2var$values))*1.2))
 #ypos= y=apply(pm2var[, c("values")], 2, max)
 #text(x=c(1:2), y=ypos + 0.1*max(ypos), paste("p = ",signif(c(pm2vartest$p.value),3),sep=""))
-  
+
 c = colnames(Xpm2)
 c[161]
 c[162]
@@ -1397,11 +1035,11 @@ for ( i in 1:ncol(Xpm2))
 }
 length(vec)
 # the empty strings are the expelled groups and we remove them now from our  contrast
-vec = vec[vec != ""]
-length(vec)
-length(vec2)
-vec2 = vec2[vec2 != ""]
-length(vec2)
+# vec = vec[vec != ""]
+# length(vec)
+# length(vec2)
+# vec2 = vec2[vec2 != ""]
+# length(vec2)
 # removing so Negative.Control entries so that we dont get NAs which actually stops glht function from running
 vec = setdiff(vec, c("Negative.ControlLL-Negative.ControlLL"))
 vec2 = setdiff(vec2, c("Negative.ControlHL-Negative.ControlHL"))
@@ -1419,7 +1057,17 @@ for ( i in 1: length(vec2))
   metabolitevec2[i] = paste( c("("), vec2[i], c(")"))
 }
 metabolitevec <- paste(metabolitevec2, metabolitevec1, sep ="-")
-#metabolitevec <- setdiff(metabolitevec, c("Negative.ControlHL-Negative.ControlHL-Negative.ControlLL-Negative.ControlLL"))
+
+idx <-which(grepl("\\(  \\)", metabolitevec))  # returns the indices of the deleted entries
+
+deleted <- metabolitevec[idx]
+metabolitevec<- setdiff(metabolitevec, deleted)
+metabolitevec <- setdiff(metabolitevec, c("Negative.ControlHL-Negative.ControlHL-Negative.ControlLL-Negative.ControlLL"))
+vec = vec[vec != ""]
+length(vec)
+length(vec2)
+vec2 = vec2[vec2 != ""]
+length(vec2)
 contpm2=makeContrasts(contrasts =c(vec2, vec, metabolitevec), levels=Xpm2)
 #using default lm function
 fitpm2 <- lm(values~0+group, data = spm2)
@@ -1552,12 +1200,12 @@ lonelyHLs = as.data.frame(lonelyHLs)
 lonelyLLs = as.data.frame(lonelyLLs)
 d=as.data.frame(rbind(as.matrix(d), as.matrix(lonelyHLs), as.matrix(lonelyLLs)))
 # add mets as rownames
-contrast_values=d[,c(2,5,8)]
+contrast_values=d[,c(5,2,8)]
 rownames=gsub("HL.+", "", d[,1]) # taking out the metabolites names again
 rownames[which(is.na(rownames))]=gsub("LL.+","",d[(nrow(d)-length(which(is.na(rownames)))+1):nrow(d),4])
 rownames(contrast_values)=rownames
 # transform into superheat compatible format
-colnames(contrast_values)=colnames(heat_pm2) 
+#colnames(contrast_values)=colnames(heat_pm2) 
 heat_pm2_precursor <- contrast_values[rowSums(is.na(contrast_values)) != ncol(contrast_values), ] # remove rows with only NAs
 heat_pm2 = apply(heat_pm2_precursor,2,as.numeric) # convert <NA> into NA
 rownames(heat_pm2)=rownames(heat_pm2_precursor) 
@@ -1575,6 +1223,99 @@ pm2compounds = read.xlsx("Data/PM01_PM2A_compound list.xlsx", sheetName = "PM2A"
 pm2compounds$X3 = conv_metnames(pm2compounds$X3)
 pm2compounds$X4 = conv_metnames(pm2compounds$X4)
 head (lmpm2)
+
+downregulated = as.vector(which((lmpm2$diffexpressed=="DOWN")==TRUE))
+length(downregulated) #: 27
+
+down = data.frame(matrix(NA, nrow =27, ncol = 4))
+j = 1
+for ( i in downregulated)
+{
+  down[j,] = lmpm2[i,]
+  j =j+1
+}
+head(down)
+dim(down) #51
+downMets <-downdiff(down)
+
+
+df_downLL= CsourceExtract(downLLmets)
+df_downHL= CsourceExtract(downHLmets)
+
+#Upregulation
+upregulated = as.vector(which((lmpm1$diffexpressed=="UP" & lmpm1$lmpval <0.05)==TRUE))
+length(upregulated)
+up = data.frame(matrix(NA, nrow =16, ncol = 4))
+j = 1
+for ( i in upregulated)
+{
+  up[j,] = lmpm1[i,]
+  j =j+1
+}
+up
+# up consists of ohly those metabolites in the third colum of the heat map ie. the interaction component
+upMets <- gsub("HL(-.+).+", "", up$X1)
+upMets <- gsub(".+ ", "", upMets)
+#upMets <- gsub('.+([a-z]+)HL.+', '(\\1)', up$X1)
+CsourceUp = vector(length = length(upMets), mode = "character")
+df_up <- CsourceExtract(upMets)
+
+
+Noreg = as.vector(which((lmpm1$diffexpressed=="NO")==TRUE))
+length(Noreg)
+No= data.frame(matrix(NA, nrow =217, ncol = 4))
+j = 1
+for ( i in Noreg)
+{
+  No[j,] = lmpm1[i,]
+  j =j+1
+}
+No = as.data.frame(No)
+head(No)
+dim(No) #217
+NoMets <- Nodiff(No)
+df_noLL= CsourceExtract(NoMets$LLmets)
+df_noHL= CsourceExtract(NoMets$HLmets)
+df_noHL_LL = CsourceExtract(NoMets$HL_LLmets)
+
+
+#no regulation for seaprated ones
+tableHL_LL <- as.data.frame(table(df_noHL_LL$Csource))
+tablenoLL <-  as.data.frame(table(df_noLL$Csource))
+tablenoHL <- as.data.frame(table(df_noHL$Csource))
+#ureg for separated ones
+tableup <- as.data.frame(table(df_up$Csource))
+#downreg for the separated ones
+tabledownLL <- as.data.frame(table(df_downLL$Csource))
+tabledownHL <- as.data.frame(table(df_downHL$Csource))
+#creating contingecy matrix
+contingency_mat <- matrix(NA, nrow=8, ncol= 6)
+colnames(contingency_mat) = c( "DownregulationLL", "DownregulationHL", "UpregulationHL_LL",
+                               "NoRegulationLL", "NoRegulationHL", "NoregulationHL_LL")
+rownames (contingency_mat) = c("Alcohol", "Amide", "Amine", "Amino acid", 
+                               "Carbohydrate", "Carboxylic acid", "Ester", "Fatty acid")
+contingency_mat[,1] = c(0, tabledownLL$Freq)
+contingency_mat[,2] =  c(0, 1,1,0, 4,3,0,3)
+contingency_mat[,3] =  c(0,0, 0, 1, 7, 8, 0, 0)
+contingency_mat[,4] = c(2, 0,0,12,25,16,0,0)
+contingency_mat[,5] = c(2,0,1,16,34,29,1,0)
+contingency_mat[,6] =tableHL_LL$Freq
+
+contingency_mat
+hyperup <- phyperfunction(contingency_mat, "UpregulationHL_LL")
+hyperdownLL <- phyperfunction(contingency_mat, "DownregulationLL")
+hyperdownHL <- phyperfunction(contingency_mat, "DownregulationHL")
+hypernoLL <- phyperfunction(contingency_mat, "NoRegulationLL")
+hypernoHL <-  phyperfunction(contingency_mat, "NoRegulationHL")
+hyperno <- phyperfunction(contingency_mat, "NoregulationHL_LL")
+
+library(ggpubr)
+
+plotfunction(hyperup)
+plotfunction(hyperdownHL)
+plotfunction(hyperdownLL)
+
+
 
 #which genes are down regulated, upregulated or none ?
 downregulated = as.vector(which((lmpm2$diffexpressed=="DOWN")==TRUE))
