@@ -71,16 +71,9 @@ downdiff <- function (down)
   downHL <- down$X1[idxHL]
   downHLmets <- gsub("HL-Negative.Control.+", "", downHL)
   
-  
-  idxHL_LL<-  which(grepl("^\\(", down$X1 )==TRUE)
-  #length(idxno) #79 # 79+83+55 = 217
-  downHL_LLmets<<- No$X1[idxHL_LL]
-  downHL_LLmets <- gsub("-.+", "", downHL_LLmets)
-  downHL_LLmets<- gsub(".+ ", "", downHL_LLmets)
-  
   listMets$LLmets = downLLmets
   listMets$HLmets = downHLmets
-  listMets$HL_LLmets = downHL_LLmets
+
   return(listMets)
   
 }
