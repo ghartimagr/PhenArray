@@ -559,8 +559,8 @@ dim(down) #51
 downMets <-downdiff(down)
 # CsourceDownLL<- CsourceExtract(downMets$LLmets)
 # CsourceDownHL <- CsourceExtract(downMets$HLmets)
-df_downLL= CsourceExtract(downLLmets)
-df_downHL= CsourceExtract(downHLmets)
+df_downLL= CsourceExtract(downMets$LLmets)
+df_downHL= CsourceExtract(downMets$HLmets)
 
 #Upregulation
 upregulated = as.vector(which((lmpm1$diffexpressed=="UP" & lmpm1$lmpval <0.05)==TRUE))
@@ -1351,4 +1351,109 @@ superheat(heatpm2anova,
 # STEP 5 : BUILD SUPPORT VE`CTOR MACHINES AND RANDOM FOREST CLASSIFIERS TO SEPARATE
 #THE METABOLITES WHICH HAVE EFFECT FROM THE ONES WHICH DONOT
 
+
+#fingerprints
+library(xlsx)
+pm1compounds = read.xlsx("/home/mamata/Desktop/project/Data/PM01_PM2A_compound list.xlsx", sheetName = "PM01", header=TRUE)
+pm2compounds = read.xlsx("/home/mamata/Desktop/project/Data/PM01_PM2A_compound list.xlsx", sheetName = "PM2A", header=TRUE)
+
+#the following are the smiles for the RDKIT 
+# we use the webchem library for that 
+# we find the smiles of the compounds using the given CAS NO.s in the dataset
+library(webchem)
+pm1CASno <- pm1compounds[, c(3,6)]
+pm2CASno<- pm2compounds[,c(3,6)]
+colnames(pm1CASno) <- c("Metabolites", "CAS no.")
+colnames(pm2CASno) <- c("Metabolites", "CAS no.")
+pm1CASno$`CAS no.` <- gsub("CAS", "", pm1CASno$`CAS no.`)
+pm1CASno <- pm1CASno$`CAS no.`
+pm1CASno <- pm1CASno[!is.na(pm1CASno)]
+pm2CASno$`CAS no.` <- gsub("CAS", "", pm2CASno$`CAS no.`)
+pm2CASno <- pm2CASno$`CAS no.`
+pm2CASno <- pm2CASno[!is.na(pm2CASno)]
+pm2CASno <- gsub("or.+", "", pm2CASno)
+# write.csv(pm1CASno, "/home/mamata/Desktop/project/Data/pm1CASno.csv", row.names=FALSE)
+# write.csv(pm2CASno, "/home/mamata/Desktop/project/Data/pm2CASno.csv", row.names=FALSE)
+#pm1smiles <- smilesfunc(pm1CASno)
+#taking out only the smiles
+# pm1onlysmiles <- vector()
+# for ( i in 1: 94)
+# {
+#   pm1onlysmiles[i] <- pm1smiles[[i]][[2]]
+# }
+# write.csv(pm1onlysmiles, "/home/mamata/Desktop/project/Data/pm1onlysmiles.csv", row.names=FALSE)
+#pm2smiles <- smilesfunc(pm2CASno)
+#end of chunk for getting only the smiles for the RDKIT
+
+# KEGG : extracting KEGG fingerprints using CHEMMINER package
+#first conver the  KEGG files into sdg format and use chemmineR package to develop the 
+#molecular fingerprints for the compounds
+#pm2entry <- cat(paste(shQuote(pm2entry, type="cmd"), collapse=", "))
+#DUMMPY EXAMPLE
+# code for finding the problematic kegg ids are in the file testingKEGGids.R
+#extracting the compound names and kegg entry ids, removings NAs and "NOt available " fields
+pm1kegg <- pm1compounds[, c(3,5)]
+pm2kegg<- pm2compounds[,c(3,5)]
+colnames(pm1kegg) <- c("Metabolites", "entry")
+colnames(pm2kegg) <- c("Metabolites", "entry")
+library(ChemmineR)
+library(KEGGREST)
+pm1entry <- pm1kegg$entry
+pm1entry<-pm1entry[!is.na(pm1entry)]
+pm1entry <- setdiff(pm1entry,  "not available")
+pm1entry
+#pm1entry <- cat(paste(shQuote(pm1entry, type="cmd"), collapse=", "))
+pm2entry <- pm2kegg$entry
+pm2entry <- pm2entry[!is.na(pm2entry)]
+pm2entry <- setdiff(pm2entry,  "not available")
+pm2entry
+
+# some of the KEGG ids gave me error, so i take them out as the problematicKEGG ids for both datasets
+problematicKEGG <- c("C13295", "C00022", "C01807", "C00160")
+pm1entry <- setdiff(pm1entry, problematicKEGG)
+problematicKEGGpm2 <- c("C01498" , "C00464" ,"C00795", "G03588", "C00989", "C00567", "C02238", "C00183" ,"G00275" )
+pm2entry <- setdiff(pm2entry, problematicKEGGpm2)
+pm1sdf <- importKEGG(ids = pm1entry) 
+pm2sdf <- importKEGG(ids = pm2entry)
+
+write.SDF(pm1sdf, "/home/mamata/Desktop/project/Data/pm1.sdf") 
+write.SDF(pm2sdf, "/home/mamata/Desktop/project/Data/pm2.sdf") 
+
+
+#PM1
+#SEARCHING FOR THE MOLECULAR FINGERPRINTS
+#dummy searching for frequency of various elements , MF, and MW.
+atoms <- atomcountMA(pm1sdf, addH=FALSE) 
+boxplot(atoms, col="blue", main="Atom Frequency") 
+MW(pm1sdf[1:4], addH=FALSE)
+MF(pm1sdf[1:4], addH=FALSE)
+#seaching for the functional groups 
+groups(pm1sdf, groups="fctgroup", type="countMA") 
+names = getCompoundNames(pm1sdf,results)
+#searching for MF, MW, No. of charges, atomcounts, groups, rings  and combining thae results into dataframe
+Properties <- data.frame(MF=MF(pm1sdf, addH=FALSE), MW=MW(pm1sdf, addH=FALSE),
+                     Ncharges=sapply(bonds(pm1sdf, type="charge"), length),
+                     atomcountMA(pm1sdf, addH=FALSE), 
+                     groups(pm1sdf, type="countMA"), 
+                     rings(pm1sdf, upper=6, type="count", arom=TRUE))
+Properties[1:4,]
+#converting the entire sdf format to 
+#pm1blockmatrix<- datablock2ma(datablocklist=datablock(pm1sdf))
+
+#The function sdf2ap computes atom pair descriptors for one or many compounds . 
+#It returns a searchable atom pair database stored in a container of class APset, 
+#which can be used for structural similarity searching and clustering. 
+#An APset object consists of one or many AP entries each storing the atom pairs of a single compound. s
+ap <- sdf2ap(pm1sdf[[3]]) # atom pair for 1 compound
+
+#pm1atompair <- sdf2ap(pm1sdf)
+
+ap_list = list()
+
+for ( i in 1:19)
+{
+  ap <- sdf2ap(pm1sdf[[i]])
+  ap_list[[i]] <- ap
+
+}
 
