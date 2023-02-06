@@ -62,12 +62,12 @@ Stacked <- function(table)
 downdiff <- function (down)
 {
   listMets = list()
-  idxLL<-which(grepl("^[a-zA-Z0-9].+LL-Negative.ControlLL", down$X1 )==TRUE)
+  idxLL<-which(grepl("LL-Negative.ControlLL", down$X1 )==TRUE)
   downLL <- down$X1[idxLL]
   downLLmets <- gsub("LL-Negative.Control.+", "", downLL)
   
   ##metabolites causeing downregulation in high light
-  idxHL <- which(grepl("^[a-zA-Z0-9].+HL-Negative.ControlHL", down$X1 )==TRUE)
+  idxHL <- which(grepl("HL-Negative.ControlHL", down$X1 )==TRUE)
   downHL <- down$X1[idxHL]
   downHLmets <- gsub("HL-Negative.Control.+", "", downHL)
   
@@ -88,6 +88,26 @@ CsourceExtract <- function(Mets)
     {
       idx = which(pm1compounds$X3==Mets[i])
       Csource[i] = pm1compounds$X4[idx]
+      i =i+1
+    }
+  }
+  
+  Csource <- gsub("C.Source+\\.\\.", "", Csource)
+  df <- as.data.frame(cbind(Mets, Csource))
+  return(df)
+  
+}
+
+
+CsourceExtractpm2 <- function(Mets)
+{
+  Csource = vector(length = length(Mets), mode = "character")
+  for ( i in 1:length(Mets))
+  {
+    if (Mets[i] %in% pm2compounds$X3)
+    {
+      idx = which(pm2compounds$X3==Mets[i])
+      Csource[i] = pm2compounds$X4[idx]
       i =i+1
     }
   }
@@ -145,7 +165,7 @@ phyperfunction <- function(contingency_mat, str = "Upregulation")
       q = q-1,
       m = sum(contingency_mat[class, columns]),
       n = sum(contingency_mat[which(row.names(contingency_mat) != class), columns]),
-      k = sum(contingency_mat[, str]), , lower.tail = FALSE
+      k = sum(contingency_mat[, str]), lower.tail = FALSE
     )
     probs = data.frame(str= q,
                        "pvalues" = p)
@@ -184,5 +204,37 @@ plotfunction <- function(probabilities)
   figure
   
   return(figure)
+  
+}
+
+importKEGG <- function(ids) {                                                                                                                                                                                                                                                                                                 
+  sdfset <- SDFset()                                                                                                                                                                                                                                                                                                        
+  for(i in ids) {                                                                                                                                                                                                                                                                                                           
+    url <- paste0("http://www.genome.jp/dbget-bin/www_bget?-f+m+drug+", i)                                                                                                                                                                                                                                                
+    tmp <- as(read.SDFset(url), "SDFset")                                                                                                                                                                                                                                                                                 
+    cid(tmp) <- makeUnique(i)                                                                                                                                                                                                                                                                                                         
+    sdfset <- c(sdfset, tmp)                                                                                                                                                                                                                                                                                              
+  }                                                                                                                                                                                                                                                                                                                         
+  sdfset                                                                                                                                                                                                                                                                                                                    
+}  
+
+
+smilesfunc <- function(CasNo)
+{
+  #NOT function but just a forloop
+  # smilespm1 <- list()
+  # for ( i in 1: length(pm1CASno))
+  # {
+  #   ismile <- as.data.frame(cir_query(pm1CASno[i], "smiles"))
+  #   smilespm1[[i]] <- ismile
+  # }
+  
+  smiles <- list()
+  for ( i in 1:length(CasNo))
+  {
+    ismile <- as.data.frame(cir_query(CasNo[i], "smiles"))
+    smiles[[i]] <- ismile
+  }
+  return(smiles)
   
 }
