@@ -1,4 +1,16 @@
-library("limma")
+conv_metnames=function(metn) {
+  #Function to convert an character vector or metabolite names into valid
+  #R variable names
+  
+  #substitute all invalid characters with . 
+  metn=gsub(" |-|,", ".",metn)
+  #quotes are removed
+  metn=gsub("`", "", metn)
+  #Add a 'met' as prefix to all metabolite names starting with a number
+  metn[grep("^[[:digit:]]", metn)]=paste("met", metn[grep("^[[:digit:]]", metn)], sep="")
+  return(metn)
+}
+
 Scaling <- function(table)
 {
   #converting dataframe into matrix
@@ -238,3 +250,34 @@ smilesfunc <- function(CasNo)
   return(smiles)
   
 }
+jaccard <- function(a, b) {
+  intersection = length(intersect(a, b))
+  union = length(a) + length(b) - intersection
+  return (intersection/union)
+}
+
+
+# z score
+z_score <- function (mt) 
+{
+  for ( i in 1: ncol(mt))
+  {
+    mt[,i]=(mt[,i]-mean(mt[,i]))/sd(mt[,i])
+  }
+  return(mt)
+}
+
+uncorrelated <- function(fingerprit)
+{
+  corfeatures <-cor(fingerprit[,2 : ncol(fingerprit)])
+  corrplot(as.matrix(corfeatures), type = "upper", order = "hclust", 
+           tl.col = "black", tl.srt = 45)
+  cormodified <- corfeatures                  
+  cormodified[upper.tri(cormodified)] <- 0
+  diag(cormodified) <- 0
+  #cormodified
+  correlated <- apply(cormodified, 2, function(x) any(x > 0.6))
+  uncor_features<- fingerprit[ ,!correlated]
+  
+}
+
